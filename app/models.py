@@ -95,6 +95,7 @@ class Trade(Base):
     amount = Column(Float, nullable=False)
     opened_at = Column(DateTime, default=datetime.utcnow)
     status = Column(String, default="closed")  # open | closed
+    external_id = Column(String, nullable=True)  # ticket MT5 d'origine, pour éviter les doublons à la synchro
 
     user = relationship("User", back_populates="trades")
 

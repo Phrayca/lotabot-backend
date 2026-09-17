@@ -142,3 +142,25 @@ class MT5StatusOut(BaseModel):
     connected: bool
     brokerServer: Optional[str] = None
     accountNumber: Optional[str] = None
+
+
+class SyncTradeIn(BaseModel):
+    externalId: str
+    pair: str = "XAUUSD"
+    amount: float
+    openedAt: datetime
+    status: str = "closed"  # open | closed
+
+
+class SyncIn(BaseModel):
+    phone: str
+    balance: float
+    brokerServer: Optional[str] = None
+    accountNumber: Optional[str] = None
+    trades: List[SyncTradeIn] = []
+
+
+class SyncOut(BaseModel):
+    ok: bool
+    tradesReceived: int
+    tradesCreated: int
