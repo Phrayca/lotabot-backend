@@ -47,7 +47,6 @@ def on_startup():
     db = SessionLocal()
     try:
         seed.seed_courses(db)
-        seed.seed_demo_account(db)
     finally:
         db.close()
 

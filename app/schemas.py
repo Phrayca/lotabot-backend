@@ -23,11 +23,13 @@ class DashboardOut(BaseModel):
     fullName: str
     plan: str
     balance: float
+    balanceUsd: float
     weekChangePct: float
     robotActive: bool
     mt5Connected: bool
     pair: str
     dayGain: float
+    dayGainUsd: float
     openTrades: int
 
 
@@ -49,6 +51,7 @@ class TradeOut(BaseModel):
     pair: str
     time: str
     amount: float
+    amountUsd: float
 
 
 class DayGroupOut(BaseModel):

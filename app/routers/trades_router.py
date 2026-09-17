@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from .. import models, schemas
+from ..config import EXCHANGE_RATE_USD_FCFA
 from ..database import get_db
 from ..auth import get_current_user
 
@@ -35,18 +36,22 @@ def dashboard(user: models.User = Depends(get_current_user), db: Session = Depen
     week_change_pct = round(sum(t.amount for t in week_trades) / user.balance * 100, 1) if user.balance else 0.0
 
     today_trades = [t for t in user.trades if t.opened_at.date() == now.date()]
-    day_gain = sum(t.amount for t in today_trades)
+    day_gain_usd = sum(t.amount for t in today_trades)
     open_trades = len([t for t in user.trades if t.status == "open"])
+
+    balance_usd = user.balance
 
     return schemas.DashboardOut(
         fullName=user.full_name,
         plan=sub.plan if sub else "classique",
-        balance=user.balance,
+        balance=round(balance_usd * EXCHANGE_RATE_USD_FCFA, 2),
+        balanceUsd=round(balance_usd, 2),
         weekChangePct=week_change_pct,
         robotActive=robot.active if robot else False,
         mt5Connected=mt5.connected if mt5 else False,
         pair=robot.pair if robot else "XAUUSD",
-        dayGain=day_gain,
+        dayGain=round(day_gain_usd * EXCHANGE_RATE_USD_FCFA, 2),
+        dayGainUsd=round(day_gain_usd, 2),
         openTrades=open_trades,
     )
 
@@ -62,7 +67,8 @@ def history(user: models.User = Depends(get_current_user)):
         groups.setdefault(label, []).append(schemas.TradeOut(
             pair=t.pair,
             time=t.opened_at.strftime("%H:%M"),
-            amount=t.amount,
+            amount=round(t.amount * EXCHANGE_RATE_USD_FCFA, 2),
+            amountUsd=round(t.amount, 2),
         ))
 
     return schemas.HistoryOut(groups=[

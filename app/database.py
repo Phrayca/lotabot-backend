@@ -37,3 +37,13 @@ def run_migrations():
                 conn.commit()
             except Exception:
                 conn.rollback()
+
+    # Nettoyage des anciennes fausses données de démo : tout trade sans
+    # external_id vient forcément de l'ancien compte de démo pré-rempli
+    # (les vrais trades, eux, arrivent toujours avec un external_id via /mt5/sync).
+    with engine.connect() as conn:
+        try:
+            conn.execute(text("DELETE FROM trades WHERE external_id IS NULL"))
+            conn.commit()
+        except Exception:
+            conn.rollback()
