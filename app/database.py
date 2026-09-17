@@ -1,4 +1,5 @@
 import os
+import secrets
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, declarative_base
 from dotenv import load_dotenv
@@ -26,6 +27,7 @@ def get_db():
 # de façon idempotente (ignore silencieusement si la colonne existe déjà).
 _PENDING_COLUMNS = [
     ("trades", "external_id", "VARCHAR"),
+    ("mt5_connections", "sync_token", "VARCHAR"),
 ]
 
 
@@ -44,6 +46,19 @@ def run_migrations():
     with engine.connect() as conn:
         try:
             conn.execute(text("DELETE FROM trades WHERE external_id IS NULL"))
+            conn.commit()
+        except Exception:
+            conn.rollback()
+
+    # Comptes MT5 créés avant l'ajout du token personnel : on leur en génère un.
+    with engine.connect() as conn:
+        try:
+            rows = conn.execute(text("SELECT id FROM mt5_connections WHERE sync_token IS NULL")).fetchall()
+            for row in rows:
+                conn.execute(
+                    text("UPDATE mt5_connections SET sync_token = :token WHERE id = :id"),
+                    {"token": secrets.token_hex(16), "id": row[0]},
+                )
             conn.commit()
         except Exception:
             conn.rollback()

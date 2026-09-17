@@ -145,6 +145,7 @@ class MT5StatusOut(BaseModel):
     connected: bool
     brokerServer: Optional[str] = None
     accountNumber: Optional[str] = None
+    syncToken: Optional[str] = None
 
 
 class SyncTradeIn(BaseModel):
@@ -156,7 +157,6 @@ class SyncTradeIn(BaseModel):
 
 
 class SyncIn(BaseModel):
-    phone: str
     balance: float
     brokerServer: Optional[str] = None
     accountNumber: Optional[str] = None

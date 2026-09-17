@@ -1,5 +1,6 @@
 import random
 import string
+import secrets
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 
@@ -46,5 +47,5 @@ def bootstrap_user(db: Session, user: models.User, plan: str = "classique"):
     ))
     db.add(models.Referral(user_id=user.id, code=make_referral_code(user.full_name)))
     db.add(models.NotificationPrefs(user_id=user.id))
-    db.add(models.MT5Connection(user_id=user.id, connected=False))
+    db.add(models.MT5Connection(user_id=user.id, connected=False, sync_token=secrets.token_hex(16)))
     db.commit()

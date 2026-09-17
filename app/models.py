@@ -82,6 +82,7 @@ class MT5Connection(Base):
     account_number = Column(String, nullable=True)
     investor_password_enc = Column(String, nullable=True)
     demo_mode = Column(Boolean, default=True)
+    sync_token = Column(String, unique=True, nullable=True)  # code personnel pour /mt5/sync (EA ou script local)
 
     user = relationship("User", back_populates="mt5_connection")
 
