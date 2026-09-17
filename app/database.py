@@ -1,5 +1,5 @@
 import os
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, declarative_base
 from dotenv import load_dotenv
 
@@ -19,3 +19,21 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+# Colonnes ajoutées après la création initiale des tables. Base.metadata.create_all
+# ne modifie jamais une table déjà existante, donc on les ajoute ici à la main,
+# de façon idempotente (ignore silencieusement si la colonne existe déjà).
+_PENDING_COLUMNS = [
+    ("trades", "external_id", "VARCHAR"),
+]
+
+
+def run_migrations():
+    for table, column, col_type in _PENDING_COLUMNS:
+        with engine.connect() as conn:
+            try:
+                conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}"))
+                conn.commit()
+            except Exception:
+                conn.rollback()

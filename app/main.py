@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
-from .database import Base, engine, SessionLocal
+from .database import Base, engine, SessionLocal, run_migrations
 from . import seed
 from .routers import (
     auth_router,
@@ -19,6 +19,7 @@ from .routers import (
 load_dotenv()
 
 Base.metadata.create_all(bind=engine)
+run_migrations()
 
 app = FastAPI(title="Lotabot API", version="1.0.0")
 
