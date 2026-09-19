@@ -67,3 +67,16 @@ def run_migrations():
             conn.commit()
         except Exception:
             conn.rollback()
+
+    # Comptes créés avant le changement des réglages par défaut du robot (0.02 / 5
+    # positions) : on les ramène au nouveau réglage prudent par défaut (0.01 / 1),
+    # sans toucher aux comptes qui ont déjà été personnalisés différemment.
+    with engine.connect() as conn:
+        try:
+            conn.execute(text(
+                "UPDATE robot_settings SET lot = 0.01, max_positions = 1 "
+                "WHERE lot = 0.02 AND max_positions = 5"
+            ))
+            conn.commit()
+        except Exception:
+            conn.rollback()

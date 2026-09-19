@@ -16,6 +16,11 @@ class LoginIn(BaseModel):
     password: str
 
 
+class ChangePasswordIn(BaseModel):
+    currentPassword: str
+    newPassword: str
+
+
 class TokenOut(BaseModel):
     token: str
 
@@ -33,6 +38,7 @@ class DashboardOut(BaseModel):
     dayGainUsd: float
     openTrades: int
     profileComplete: bool
+    subscriptionStatus: str
 
 
 class RobotOut(BaseModel):

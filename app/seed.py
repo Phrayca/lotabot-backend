@@ -125,7 +125,7 @@ def bootstrap_user(db: Session, user: models.User, plan: str = "classique"):
 
     user.trial_ends_at = trial_end
 
-    db.add(models.RobotSettings(user_id=user.id))
+    db.add(models.RobotSettings(user_id=user.id, lot=0.01, max_positions=1))
     db.add(models.Subscription(
         user_id=user.id,
         plan=plan,

@@ -7,6 +7,7 @@ from .. import models, schemas
 from ..config import EXCHANGE_RATE_USD_FCFA
 from ..database import get_db
 from ..auth import get_current_user
+from ..plan_utils import enforce_trial_expiry
 
 router = APIRouter(prefix="/api/trades", tags=["trades"])
 
@@ -26,6 +27,7 @@ def _day_label(d: datetime, today: datetime) -> str:
 
 @router.get("/dashboard", response_model=schemas.DashboardOut)
 def dashboard(user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    enforce_trial_expiry(user, db)
     robot = user.robot_settings
     sub = user.subscription
     mt5 = user.mt5_connection
@@ -55,6 +57,7 @@ def dashboard(user: models.User = Depends(get_current_user), db: Session = Depen
         dayGainUsd=round(day_gain_usd, 2),
         openTrades=open_trades,
         profileComplete=profile_complete,
+        subscriptionStatus=sub.status if sub else "trialing",
     )
 
 

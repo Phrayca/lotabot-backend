@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from .. import models, schemas, seed
 from ..database import get_db
-from ..auth import hash_password, verify_password, create_token
+from ..auth import hash_password, verify_password, create_token, get_current_user
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -45,3 +45,14 @@ def login(payload: schemas.LoginIn, db: Session = Depends(get_db)):
     if not user or not verify_password(payload.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Numéro ou mot de passe incorrect")
     return {"token": create_token(user.id)}
+
+
+@router.post("/change-password")
+def change_password(payload: schemas.ChangePasswordIn, user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if not verify_password(payload.currentPassword, user.password_hash):
+        raise HTTPException(status_code=401, detail="Mot de passe actuel incorrect")
+    if len(payload.newPassword) < 4:
+        raise HTTPException(status_code=400, detail="Le nouveau mot de passe doit faire au moins 4 caractères")
+    user.password_hash = hash_password(payload.newPassword)
+    db.commit()
+    return {"ok": True}

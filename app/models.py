@@ -42,8 +42,8 @@ class RobotSettings(Base):
     user_id = Column(String, ForeignKey("users.id"), unique=True, nullable=False)
     active = Column(Boolean, default=True)
     risk_level = Column(Integer, default=1)  # 0=prudent 1=modere 2=agressif
-    lot = Column(Float, default=0.02)
-    max_positions = Column(Integer, default=5)
+    lot = Column(Float, default=0.01)
+    max_positions = Column(Integer, default=1)
     pair = Column(String, default="XAUUSD")
 
     user = relationship("User", back_populates="robot_settings")
