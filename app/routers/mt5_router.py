@@ -36,6 +36,14 @@ def connect(payload: schemas.MT5ConnectIn, user: models.User = Depends(get_curre
     # Tant que l'EA n'a pas encore envoyé sa première synchro réelle, on reste en mode démo :
     # le robot affichera un statut connecté mais ne copiera pas encore de trades réels.
     m.demo_mode = True
+
+    # Dès la connexion d'un compte, on repart sur un réglage prudent par défaut
+    # (lot 0.01, 1 position), quel que soit ce qui était configuré avant.
+    robot = user.robot_settings
+    if robot:
+        robot.lot = 0.01
+        robot.max_positions = 1
+
     db.commit()
     return schemas.MT5ConnectOut(demoMode=m.demo_mode)
 

@@ -66,3 +66,12 @@ def update_notifications(payload: schemas.NotificationsIn, user: models.User = D
         n.promos = payload.promos
     db.commit()
     return schemas.NotificationsOut(tradeAlerts=n.trade_alerts, weeklyReport=n.weekly_report, promos=n.promos)
+
+
+@router.delete("")
+def delete_account(user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Supprime définitivement le compte et toutes ses données liées (réglages robot,
+    abonnement, parrainage, connexion MT5, trades). Action irréversible."""
+    db.delete(user)
+    db.commit()
+    return {"ok": True}

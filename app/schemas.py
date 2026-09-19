@@ -40,6 +40,7 @@ class RobotOut(BaseModel):
     riskLevel: int
     lot: float
     maxPositions: int
+    plan: str
 
 
 class RobotIn(BaseModel):
