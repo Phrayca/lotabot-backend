@@ -31,6 +31,7 @@ _PENDING_COLUMNS = [
     ("users", "avatar_data", "TEXT"),
     ("users", "trial_ends_at", "TIMESTAMP"),
     ("users", "referred_by_user_id", "VARCHAR"),
+    ("users", "id_document_data", "TEXT"),
     ("referrals", "credit_fcfa", "FLOAT"),
 ]
 

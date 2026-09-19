@@ -40,6 +40,7 @@ def dashboard(user: models.User = Depends(get_current_user), db: Session = Depen
     open_trades = len([t for t in user.trades if t.status == "open"])
 
     balance_usd = user.balance
+    profile_complete = bool(user.email and user.dob and user.city)
 
     return schemas.DashboardOut(
         fullName=user.full_name,
@@ -53,6 +54,7 @@ def dashboard(user: models.User = Depends(get_current_user), db: Session = Depen
         dayGain=round(day_gain_usd * EXCHANGE_RATE_USD_FCFA, 2),
         dayGainUsd=round(day_gain_usd, 2),
         openTrades=open_trades,
+        profileComplete=profile_complete,
     )
 
 

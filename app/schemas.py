@@ -32,6 +32,7 @@ class DashboardOut(BaseModel):
     dayGain: float
     dayGainUsd: float
     openTrades: int
+    profileComplete: bool
 
 
 class RobotOut(BaseModel):
@@ -103,6 +104,7 @@ class ProfileIn(BaseModel):
     dob: Optional[str] = None
     city: Optional[str] = None
     avatarData: Optional[str] = None
+    idDocumentData: Optional[str] = None
 
 
 class NotificationsOut(BaseModel):

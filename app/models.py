@@ -20,6 +20,7 @@ class User(Base):
     city = Column(String, nullable=True)
     password_hash = Column(String, nullable=False)
     id_verified = Column(Boolean, default=False)
+    id_document_data = Column(Text, nullable=True)  # scan/photo de la pièce d'identité (data URL base64)
     avatar_data = Column(Text, nullable=True)  # image de profil en data URL (base64)
     balance = Column(Float, default=250000.0)
     trial_ends_at = Column(DateTime, nullable=True)

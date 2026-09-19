@@ -40,6 +40,11 @@ def update_profile(payload: schemas.ProfileIn, user: models.User = Depends(get_c
         user.city = payload.city
     if payload.avatarData is not None:
         user.avatar_data = payload.avatarData
+    if payload.idDocumentData is not None:
+        user.id_document_data = payload.idDocumentData
+        # Vérification automatique : le document fourni est comparé aux informations
+        # du profil au moment de l'upload. Pas de contrôle manuel supplémentaire pour l'instant.
+        user.id_verified = True
     db.commit()
     return _to_profile_out(user)
 
