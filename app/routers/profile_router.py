@@ -8,8 +8,7 @@ from ..auth import get_current_user
 router = APIRouter(prefix="/api/profile", tags=["profile"])
 
 
-@router.get("", response_model=schemas.ProfileOut)
-def get_profile(user: models.User = Depends(get_current_user)):
+def _to_profile_out(user: models.User) -> schemas.ProfileOut:
     sub = user.subscription
     return schemas.ProfileOut(
         fullName=user.full_name,
@@ -20,8 +19,13 @@ def get_profile(user: models.User = Depends(get_current_user)):
         dob=user.dob or "",
         city=user.city or "",
         idVerified=user.id_verified,
-        selfieVerified=user.selfie_verified,
+        avatarData=user.avatar_data,
     )
+
+
+@router.get("", response_model=schemas.ProfileOut)
+def get_profile(user: models.User = Depends(get_current_user)):
+    return _to_profile_out(user)
 
 
 @router.put("", response_model=schemas.ProfileOut)
@@ -34,19 +38,10 @@ def update_profile(payload: schemas.ProfileIn, user: models.User = Depends(get_c
         user.dob = payload.dob
     if payload.city is not None:
         user.city = payload.city
+    if payload.avatarData is not None:
+        user.avatar_data = payload.avatarData
     db.commit()
-    sub = user.subscription
-    return schemas.ProfileOut(
-        fullName=user.full_name,
-        plan=sub.plan if sub else "classique",
-        subscriptionStatus=sub.status if sub else "trialing",
-        phone=user.phone,
-        email=user.email or "",
-        dob=user.dob or "",
-        city=user.city or "",
-        idVerified=user.id_verified,
-        selfieVerified=user.selfie_verified,
-    )
+    return _to_profile_out(user)
 
 
 @router.get("/notifications", response_model=schemas.NotificationsOut)

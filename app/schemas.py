@@ -8,6 +8,7 @@ class RegisterIn(BaseModel):
     phone: str
     password: str
     plan: str = "classique"
+    referralCode: Optional[str] = None
 
 
 class LoginIn(BaseModel):
@@ -64,6 +65,7 @@ class HistoryOut(BaseModel):
 
 
 class CourseOut(BaseModel):
+    id: str
     title: str
     durationMin: int
     metaLabel: str
@@ -72,6 +74,15 @@ class CourseOut(BaseModel):
 
 class CoursesOut(BaseModel):
     courses: List[CourseOut]
+
+
+class CourseDetailOut(BaseModel):
+    id: str
+    title: str
+    durationMin: int
+    metaLabel: str
+    premium: bool
+    body: str
 
 
 class ProfileOut(BaseModel):
@@ -83,7 +94,7 @@ class ProfileOut(BaseModel):
     dob: Optional[str] = ""
     city: Optional[str] = ""
     idVerified: bool
-    selfieVerified: bool
+    avatarData: Optional[str] = None
 
 
 class ProfileIn(BaseModel):
@@ -91,6 +102,7 @@ class ProfileIn(BaseModel):
     email: Optional[str] = None
     dob: Optional[str] = None
     city: Optional[str] = None
+    avatarData: Optional[str] = None
 
 
 class NotificationsOut(BaseModel):
@@ -128,7 +140,7 @@ class CancelOut(BaseModel):
 class ReferralOut(BaseModel):
     code: str
     referredCount: int
-    monthsEarned: int
+    creditFcfa: float
 
 
 class MT5ConnectIn(BaseModel):

@@ -28,6 +28,10 @@ def get_db():
 _PENDING_COLUMNS = [
     ("trades", "external_id", "VARCHAR"),
     ("mt5_connections", "sync_token", "VARCHAR"),
+    ("users", "avatar_data", "TEXT"),
+    ("users", "trial_ends_at", "TIMESTAMP"),
+    ("users", "referred_by_user_id", "VARCHAR"),
+    ("referrals", "credit_fcfa", "FLOAT"),
 ]
 
 

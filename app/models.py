@@ -20,8 +20,10 @@ class User(Base):
     city = Column(String, nullable=True)
     password_hash = Column(String, nullable=False)
     id_verified = Column(Boolean, default=False)
-    selfie_verified = Column(Boolean, default=False)
+    avatar_data = Column(Text, nullable=True)  # image de profil en data URL (base64)
     balance = Column(Float, default=250000.0)
+    trial_ends_at = Column(DateTime, nullable=True)
+    referred_by_user_id = Column(String, ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     robot_settings = relationship("RobotSettings", uselist=False, back_populates="user", cascade="all, delete-orphan")
@@ -67,7 +69,7 @@ class Referral(Base):
     user_id = Column(String, ForeignKey("users.id"), unique=True, nullable=False)
     code = Column(String, unique=True, nullable=False)
     referred_count = Column(Integer, default=0)
-    months_earned = Column(Integer, default=0)
+    credit_fcfa = Column(Float, default=0.0)  # crédit accumulé (1000 F par filleul qui s'abonne), déduit au paiement
 
     user = relationship("User", back_populates="referral")
 

@@ -17,11 +17,18 @@ def register(payload: schemas.RegisterIn, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Mot de passe trop court (4 caractères min)")
     plan = payload.plan if payload.plan in ("classique", "premium") else "classique"
 
+    referrer_user_id = None
+    if payload.referralCode:
+        ref = db.query(models.Referral).filter(models.Referral.code == payload.referralCode.strip().upper()).first()
+        if ref:
+            referrer_user_id = ref.user_id
+
     user = models.User(
         full_name=payload.fullName.strip(),
         phone=phone,
         password_hash=hash_password(payload.password),
         balance=0.0,
+        referred_by_user_id=referrer_user_id,
     )
     db.add(user)
     db.commit()
