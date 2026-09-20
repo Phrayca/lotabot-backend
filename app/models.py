@@ -83,9 +83,11 @@ class MT5Connection(Base):
     connected = Column(Boolean, default=False)
     broker_server = Column(String, nullable=True)
     account_number = Column(String, nullable=True)
-    investor_password_enc = Column(String, nullable=True)
+    trading_password_enc = Column(String, nullable=True)  # mot de passe MT5 (droits de trading), chiffré
     demo_mode = Column(Boolean, default=True)
-    sync_token = Column(String, unique=True, nullable=True)  # code personnel pour /mt5/sync (EA ou script local)
+    sync_token = Column(String, unique=True, nullable=True)  # code personnel pour /mt5/sync (EA ou bridge)
+    bridge_status = Column(String, default="disconnected")  # disconnected | pending | running | error
+    bridge_error = Column(String, nullable=True)
 
     user = relationship("User", back_populates="mt5_connection")
 

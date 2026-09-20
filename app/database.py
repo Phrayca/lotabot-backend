@@ -33,6 +33,9 @@ _PENDING_COLUMNS = [
     ("users", "referred_by_user_id", "VARCHAR"),
     ("users", "id_document_data", "TEXT"),
     ("referrals", "credit_fcfa", "FLOAT"),
+    ("mt5_connections", "trading_password_enc", "VARCHAR"),
+    ("mt5_connections", "bridge_status", "VARCHAR"),
+    ("mt5_connections", "bridge_error", "VARCHAR"),
 ]
 
 
@@ -76,6 +79,21 @@ def run_migrations():
             conn.execute(text(
                 "UPDATE robot_settings SET lot = 0.01, max_positions = 1 "
                 "WHERE lot = 0.02 AND max_positions = 5"
+            ))
+            conn.commit()
+        except Exception:
+            conn.rollback()
+
+    # Comptes MT5 déjà existants, créés avant l'ajout du suivi du bridge de trading.
+    with engine.connect() as conn:
+        try:
+            conn.execute(text(
+                "UPDATE mt5_connections SET bridge_status = 'pending' "
+                "WHERE bridge_status IS NULL AND connected = true"
+            ))
+            conn.execute(text(
+                "UPDATE mt5_connections SET bridge_status = 'disconnected' "
+                "WHERE bridge_status IS NULL"
             ))
             conn.commit()
         except Exception:

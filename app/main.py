@@ -14,6 +14,7 @@ from .routers import (
     subscription_router,
     referral_router,
     mt5_router,
+    internal_router,
 )
 
 load_dotenv()
@@ -40,6 +41,7 @@ app.include_router(profile_router.router)
 app.include_router(subscription_router.router)
 app.include_router(referral_router.router)
 app.include_router(mt5_router.router)
+app.include_router(internal_router.router)
 
 
 @app.on_event("startup")

@@ -155,7 +155,7 @@ class ReferralOut(BaseModel):
 class MT5ConnectIn(BaseModel):
     brokerServer: str
     accountNumber: str
-    investorPassword: str
+    password: str
 
 
 class MT5ConnectOut(BaseModel):
@@ -167,6 +167,8 @@ class MT5StatusOut(BaseModel):
     brokerServer: Optional[str] = None
     accountNumber: Optional[str] = None
     syncToken: Optional[str] = None
+    bridgeStatus: Optional[str] = None
+    bridgeError: Optional[str] = None
 
 
 class SyncTradeIn(BaseModel):
@@ -188,3 +190,17 @@ class SyncOut(BaseModel):
     ok: bool
     tradesReceived: int
     tradesCreated: int
+    desiredActive: bool
+
+
+class BridgeAccountOut(BaseModel):
+    syncToken: str
+    brokerServer: str
+    accountNumber: str
+    password: str
+    desiredActive: bool
+
+
+class BridgeStatusIn(BaseModel):
+    status: str  # pending | running | error
+    error: Optional[str] = None

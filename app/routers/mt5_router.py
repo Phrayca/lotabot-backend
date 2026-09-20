@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from .. import models, schemas
 from ..database import get_db
 from ..auth import get_current_user
+from ..crypto_utils import encrypt_secret
 
 router = APIRouter(prefix="/api/mt5", tags=["mt5"])
 
@@ -21,7 +22,8 @@ def get_status(user: models.User = Depends(get_current_user), db: Session = Depe
     if not m.connected:
         return schemas.MT5StatusOut(connected=False, syncToken=m.sync_token)
     return schemas.MT5StatusOut(
-        connected=True, brokerServer=m.broker_server, accountNumber=m.account_number, syncToken=m.sync_token,
+        connected=True, brokerServer=m.broker_server, accountNumber=m.account_number,
+        syncToken=m.sync_token, bridgeStatus=m.bridge_status, bridgeError=m.bridge_error,
     )
 
 
@@ -31,11 +33,12 @@ def connect(payload: schemas.MT5ConnectIn, user: models.User = Depends(get_curre
     m.connected = True
     m.broker_server = payload.brokerServer
     m.account_number = payload.accountNumber
-    # Le mot de passe investisseur n'est jamais stocké en clair.
-    m.investor_password_enc = "•" * len(payload.investorPassword)
-    # Tant que l'EA n'a pas encore envoyé sa première synchro réelle, on reste en mode démo :
-    # le robot affichera un statut connecté mais ne copiera pas encore de trades réels.
+    # Chiffré, jamais stocké en clair. Seul le futur serveur de trading (le "bridge"),
+    # via sa clé interne dédiée, pourra le déchiffrer pour se connecter au compte.
+    m.trading_password_enc = encrypt_secret(payload.password)
     m.demo_mode = True
+    m.bridge_status = "pending"
+    m.bridge_error = None
 
     # Dès la connexion d'un compte, on repart sur un réglage prudent par défaut
     # (lot 0.01, 1 position), quel que soit ce qui était configuré avant.
@@ -54,14 +57,16 @@ def disconnect(user: models.User = Depends(get_current_user), db: Session = Depe
     m.connected = False
     m.broker_server = None
     m.account_number = None
-    m.investor_password_enc = None
+    m.trading_password_enc = None
+    m.bridge_status = "disconnected"
+    m.bridge_error = None
     db.commit()
     return {"ok": True}
 
 
 @router.post("/sync/{sync_token}", response_model=schemas.SyncOut)
 def sync(sync_token: str, payload: schemas.SyncIn, db: Session = Depends(get_db)):
-    """Reçoit les données envoyées par l'EA ou le script local d'UN client précis,
+    """Reçoit les données envoyées par l'EA ou le futur bridge d'UN client précis,
     identifié par son token personnel (visible dans l'app, écran Compte MT5).
     Chaque client ne peut mettre à jour que son propre compte : le token ne donne
     accès à rien d'autre, contrairement à une clé secrète partagée globale."""
@@ -101,4 +106,5 @@ def sync(sync_token: str, payload: schemas.SyncIn, db: Session = Depends(get_db)
             created += 1
 
     db.commit()
-    return schemas.SyncOut(ok=True, tradesReceived=len(payload.trades), tradesCreated=created)
+    desired_active = user.robot_settings.active if user.robot_settings else False
+    return schemas.SyncOut(ok=True, tradesReceived=len(payload.trades), tradesCreated=created, desiredActive=desired_active)
