@@ -25,6 +25,22 @@ def _day_label(d: datetime, today: datetime) -> str:
     return f"{JOURS_FR[d.weekday()].capitalize()} {d.day} {MOIS_FR[d.month - 1]}"
 
 
+def _week_change_pct(balance: float, week_trades: list) -> float:
+    """Variation du solde sur 7 jours, en % du solde qu'il y avait au DEBUT de la semaine.
+
+    Seuls les trades clotures comptent : le solde (balance) n'inclut pas les gains
+    ou pertes des positions encore ouvertes. Le solde de depart se deduit du solde
+    actuel moins ce qui a ete gagne/perdu pendant la semaine. Diviser par le solde
+    actuel (comme avant) gonflait le pourcentage apres des pertes : -138 % alors
+    qu'on ne peut pas perdre plus de 100 % de son solde de depart.
+    """
+    closed_pnl = sum(t.amount for t in week_trades if t.status == "closed")
+    start_balance = balance - closed_pnl
+    if start_balance <= 0:
+        return 0.0
+    return round(closed_pnl / start_balance * 100, 1)
+
+
 @router.get("/dashboard", response_model=schemas.DashboardOut)
 def dashboard(user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
     enforce_trial_expiry(user, db)
@@ -35,7 +51,7 @@ def dashboard(user: models.User = Depends(get_current_user), db: Session = Depen
     week_ago = now - timedelta(days=7)
 
     week_trades = [t for t in user.trades if t.opened_at >= week_ago]
-    week_change_pct = round(sum(t.amount for t in week_trades) / user.balance * 100, 1) if user.balance else 0.0
+    week_change_pct = _week_change_pct(user.balance, week_trades)
 
     today_trades = [t for t in user.trades if t.opened_at.date() == now.date()]
     day_gain_usd = sum(t.amount for t in today_trades)
