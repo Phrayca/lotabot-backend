@@ -94,6 +94,7 @@ def sync(sync_token: str, payload: schemas.SyncIn, db: Session = Depends(get_db)
         if existing:
             existing.status = t.status
             existing.amount = t.amount
+            existing.opened_at = t.openedAt  # corrige aussi les anciennes dates (heure serveur -> UTC)
         else:
             db.add(models.Trade(
                 user_id=user.id,
