@@ -105,6 +105,24 @@ def sync(sync_token: str, payload: schemas.SyncIn, db: Session = Depends(get_db)
             ))
             created += 1
 
+    # Une position ouverte est enregistrée sous "pos-<numéro>". Quand elle se ferme, son
+    # résultat arrive sous un AUTRE identifiant (le trade clôturé). Sans ce nettoyage,
+    # l'ancienne ligne "ouverte" resterait indéfiniment : elle gonflerait le compteur
+    # "Trades ouverts", le gain du jour, et apparaîtrait en double dans l'historique.
+    open_ids = {t.externalId for t in payload.trades if t.status == "open"}
+    stale_open = (
+        db.query(models.Trade)
+        .filter(
+            models.Trade.user_id == user.id,
+            models.Trade.status == "open",
+            models.Trade.external_id.like("pos-%"),
+        )
+        .all()
+    )
+    for stale in stale_open:
+        if stale.external_id not in open_ids:
+            db.delete(stale)
+
     db.commit()
     desired_active = user.robot_settings.active if user.robot_settings else False
     return schemas.SyncOut(ok=True, tradesReceived=len(payload.trades), tradesCreated=created, desiredActive=desired_active)
