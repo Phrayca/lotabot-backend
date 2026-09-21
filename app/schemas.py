@@ -191,6 +191,10 @@ class SyncOut(BaseModel):
     tradesReceived: int
     tradesCreated: int
     desiredActive: bool
+    # Réglages du robot choisis par le client : le bridge les applique (l'EA les ignore).
+    riskLevel: Optional[int] = None  # 0=prudent 1=modéré 2=agressif
+    lot: Optional[float] = None
+    maxPositions: Optional[int] = None
 
 
 class BridgeAccountOut(BaseModel):
@@ -199,6 +203,9 @@ class BridgeAccountOut(BaseModel):
     accountNumber: str
     password: str
     desiredActive: bool
+    riskLevel: Optional[int] = None
+    lot: Optional[float] = None
+    maxPositions: Optional[int] = None
 
 
 class BridgeStatusIn(BaseModel):

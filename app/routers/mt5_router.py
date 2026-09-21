@@ -124,5 +124,13 @@ def sync(sync_token: str, payload: schemas.SyncIn, db: Session = Depends(get_db)
             db.delete(stale)
 
     db.commit()
-    desired_active = user.robot_settings.active if user.robot_settings else False
-    return schemas.SyncOut(ok=True, tradesReceived=len(payload.trades), tradesCreated=created, desiredActive=desired_active)
+    robot = user.robot_settings
+    return schemas.SyncOut(
+        ok=True,
+        tradesReceived=len(payload.trades),
+        tradesCreated=created,
+        desiredActive=robot.active if robot else False,
+        riskLevel=robot.risk_level if robot else None,
+        lot=robot.lot if robot else None,
+        maxPositions=robot.max_positions if robot else None,
+    )

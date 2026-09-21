@@ -1,4 +1,5 @@
 import os
+import secrets
 from fastapi import APIRouter, Depends, Header, HTTPException
 from sqlalchemy.orm import Session
 
@@ -12,7 +13,12 @@ BRIDGE_INTERNAL_SECRET = os.getenv("BRIDGE_INTERNAL_SECRET")
 
 
 def _check_secret(x_internal_secret: str = Header(default=None, alias="X-Internal-Secret")):
-    if not BRIDGE_INTERNAL_SECRET or x_internal_secret != BRIDGE_INTERNAL_SECRET:
+    # Comparaison en temps constant : ne laisse pas deviner la clé caractère par caractère
+    if (
+        not BRIDGE_INTERNAL_SECRET
+        or not x_internal_secret
+        or not secrets.compare_digest(x_internal_secret.encode(), BRIDGE_INTERNAL_SECRET.encode())
+    ):
         raise HTTPException(status_code=401, detail="Clé interne invalide")
 
 
@@ -35,12 +41,16 @@ def list_accounts(db: Session = Depends(get_db), _=Depends(_check_secret)):
             password = decrypt_secret(m.trading_password_enc)
         except RuntimeError:
             continue
+        robot = m.user.robot_settings
         out.append(schemas.BridgeAccountOut(
             syncToken=m.sync_token,
             brokerServer=m.broker_server,
             accountNumber=m.account_number,
             password=password,
-            desiredActive=m.user.robot_settings.active if m.user.robot_settings else False,
+            desiredActive=robot.active if robot else False,
+            riskLevel=robot.risk_level if robot else None,
+            lot=robot.lot if robot else None,
+            maxPositions=robot.max_positions if robot else None,
         ))
     return out
 
