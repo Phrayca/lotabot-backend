@@ -216,6 +216,81 @@ class BridgeStatusIn(BaseModel):
     error: Optional[str] = None
 
 
+class AdminBootstrapIn(BaseModel):
+    email: str
+    password: str
+
+
+class AdminLoginIn(BaseModel):
+    email: str
+    password: str
+
+
+class AdminTokenOut(BaseModel):
+    token: str
+    email: str
+
+
+class AdminClientOut(BaseModel):
+    id: str
+    fullName: str
+    phone: str
+    plan: str
+    subscriptionStatus: str
+    mt5Connected: bool
+    brokerServer: Optional[str] = None
+    accountMasked: Optional[str] = None
+    robotStatus: str
+    robotStatusMessage: Optional[str] = None
+    legalUpToDate: bool
+    balanceUsd: float
+    createdAt: datetime
+
+
+class AdminClientsOut(BaseModel):
+    clients: List[AdminClientOut]
+
+
+class AdminLegalAcceptanceOut(BaseModel):
+    slug: str
+    version: str
+    acceptedAt: datetime
+    ipAddress: Optional[str] = None
+
+
+class AdminTradeOut(BaseModel):
+    externalId: Optional[str] = None
+    pair: str
+    amountUsd: float
+    status: str
+    openedAt: datetime
+
+
+class AdminClientDetailOut(BaseModel):
+    id: str
+    fullName: str
+    phone: str
+    email: Optional[str] = None
+    city: Optional[str] = None
+    createdAt: datetime
+    plan: str
+    subscriptionStatus: str
+    subscriptionRenewsAt: Optional[datetime] = None
+    mt5Connected: bool
+    brokerServer: Optional[str] = None
+    accountMasked: Optional[str] = None
+    robotStatus: str
+    robotStatusMessage: Optional[str] = None
+    riskLevel: int
+    lot: float
+    maxPositions: int
+    balanceUsd: float
+    weekChangePct: float
+    openTrades: int
+    legalAcceptances: List[AdminLegalAcceptanceOut]
+    recentTrades: List[AdminTradeOut]
+
+
 class LegalDocumentOut(BaseModel):
     slug: str
     title: str

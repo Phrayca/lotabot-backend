@@ -131,6 +131,31 @@ class NotificationPrefs(Base):
     user = relationship("User", back_populates="notification_prefs")
 
 
+class AdminUser(Base):
+    """Compte de l'equipe Lotabot pour l'espace admin (distinct des comptes clients)."""
+    __tablename__ = "admin_users"
+
+    id = Column(String, primary_key=True, default=gen_id)
+    email = Column(String, unique=True, nullable=False)
+    password_hash = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    sessions = relationship("AdminSession", back_populates="admin", cascade="all, delete-orphan")
+
+
+class AdminSession(Base):
+    """Une session de connexion admin (jeton envoye au navigateur, seul son empreinte est stockee)."""
+    __tablename__ = "admin_sessions"
+
+    id = Column(String, primary_key=True, default=gen_id)
+    admin_id = Column(String, ForeignKey("admin_users.id"), nullable=False)
+    token_hash = Column(String, unique=True, nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    expires_at = Column(DateTime, nullable=False)
+
+    admin = relationship("AdminUser", back_populates="sessions")
+
+
 class LegalDocument(Base):
     """Un document (CGU, avertissement sur les risques, autorisation de trading MT5).
     Une nouvelle ligne = une nouvelle version publiée ; l'ancienne reste en base pour l'historique."""
