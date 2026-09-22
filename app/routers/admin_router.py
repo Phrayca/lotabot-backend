@@ -212,3 +212,108 @@ def get_client(
             for t in recent
         ],
     )
+
+
+def _get_client_or_404(client_id: str, db: Session) -> models.User:
+    user = db.query(models.User).filter(models.User.id == client_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Client introuvable")
+    return user
+
+
+@router.put("/clients/{client_id}/robot", response_model=schemas.RobotOut)
+def set_robot_active(
+    client_id: str,
+    payload: schemas.AdminRobotActionIn,
+    _admin: models.AdminUser = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    """Met le robot en pause ou le reactive, depuis l'admin. Le client peut aussi le faire
+    lui-meme dans l'app : les deux ecrivent le meme reglage, le dernier gagne."""
+    user = _get_client_or_404(client_id, db)
+    robot = user.robot_settings
+    if not robot:
+        raise HTTPException(status_code=400, detail="Ce client n'a pas encore de reglages robot")
+    robot.active = payload.active
+    db.commit()
+    plan = user.subscription.plan if user.subscription else "classique"
+    return schemas.RobotOut(active=robot.active, riskLevel=robot.risk_level, lot=robot.lot,
+                             maxPositions=robot.max_positions, plan=plan)
+
+
+@router.post("/clients/{client_id}/mt5/restart")
+def restart_mt5(
+    client_id: str,
+    _admin: models.AdminUser = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    """Force le bridge a redemarrer le worker de ce compte (nouveau terminal MT5, nouvel etat
+    de strategie) - c'est ce qui sort reellement un compte d'un arret de securite, puisque ce
+    dernier vit en memoire dans le worker et non en base."""
+    user = _get_client_or_404(client_id, db)
+    m = user.mt5_connection
+    if not m or not m.connected:
+        raise HTTPException(status_code=400, detail="Ce client n'a pas de compte MT5 connecte")
+    m.bridge_status = "pending"
+    m.bridge_error = None
+    m.force_restart_requested_at = datetime.utcnow()
+    db.commit()
+    return {"ok": True}
+
+
+@router.post("/clients/{client_id}/subscription/extend", response_model=schemas.SubscriptionOut)
+def extend_subscription(
+    client_id: str,
+    payload: schemas.AdminExtendSubscriptionIn,
+    _admin: models.AdminUser = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    if payload.days <= 0:
+        raise HTTPException(status_code=400, detail="Le nombre de jours doit etre positif")
+    user = _get_client_or_404(client_id, db)
+    sub = user.subscription
+    if not sub:
+        raise HTTPException(status_code=400, detail="Ce client n'a pas d'abonnement")
+    base = sub.renews_at if sub.renews_at and sub.renews_at > datetime.utcnow() else datetime.utcnow()
+    sub.renews_at = base + timedelta(days=payload.days)
+    if sub.status in ("expired", "cancelled"):
+        sub.status = "active"
+    db.commit()
+    return schemas.SubscriptionOut(plan=sub.plan, price=sub.price, renewsAt=sub.renews_at,
+                                    status=sub.status, paymentMethod=sub.payment_method)
+
+
+@router.get("/clients/{client_id}/notes", response_model=schemas.AdminNotesOut)
+def list_notes(
+    client_id: str,
+    _admin: models.AdminUser = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    _get_client_or_404(client_id, db)
+    notes = (
+        db.query(models.AdminNote)
+        .filter(models.AdminNote.user_id == client_id)
+        .order_by(models.AdminNote.created_at.desc())
+        .all()
+    )
+    admins = {a.id: a.email for a in db.query(models.AdminUser).all()}
+    return schemas.AdminNotesOut(notes=[
+        schemas.AdminNoteOut(id=n.id, body=n.body, createdAt=n.created_at, adminEmail=admins.get(n.admin_id, "?"))
+        for n in notes
+    ])
+
+
+@router.post("/clients/{client_id}/notes", response_model=schemas.AdminNotesOut)
+def add_note(
+    client_id: str,
+    payload: schemas.AdminNoteIn,
+    admin: models.AdminUser = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    _get_client_or_404(client_id, db)
+    body = payload.body.strip()
+    if not body:
+        raise HTTPException(status_code=400, detail="La note est vide")
+    db.add(models.AdminNote(user_id=client_id, admin_id=admin.id, body=body))
+    db.commit()
+    return list_notes(client_id, admin, db)

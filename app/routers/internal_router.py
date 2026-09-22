@@ -51,6 +51,7 @@ def list_accounts(db: Session = Depends(get_db), _=Depends(_check_secret)):
             riskLevel=robot.risk_level if robot else None,
             lot=robot.lot if robot else None,
             maxPositions=robot.max_positions if robot else None,
+            restartNonce=m.force_restart_requested_at.isoformat() if m.force_restart_requested_at else None,
         ))
     return out
 

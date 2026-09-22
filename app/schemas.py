@@ -209,6 +209,8 @@ class BridgeAccountOut(BaseModel):
     riskLevel: Optional[int] = None
     lot: Optional[float] = None
     maxPositions: Optional[int] = None
+    # Change de valeur = signal au bridge de redemarrer ce worker (ex: sortir d'un arret de securite)
+    restartNonce: Optional[str] = None
 
 
 class BridgeStatusIn(BaseModel):
@@ -289,6 +291,29 @@ class AdminClientDetailOut(BaseModel):
     openTrades: int
     legalAcceptances: List[AdminLegalAcceptanceOut]
     recentTrades: List[AdminTradeOut]
+
+
+class AdminRobotActionIn(BaseModel):
+    active: bool
+
+
+class AdminExtendSubscriptionIn(BaseModel):
+    days: int
+
+
+class AdminNoteIn(BaseModel):
+    body: str
+
+
+class AdminNoteOut(BaseModel):
+    id: str
+    body: str
+    createdAt: datetime
+    adminEmail: str
+
+
+class AdminNotesOut(BaseModel):
+    notes: List[AdminNoteOut]
 
 
 class LegalDocumentOut(BaseModel):

@@ -89,6 +89,9 @@ class MT5Connection(Base):
     sync_token = Column(String, unique=True, nullable=True)  # code personnel pour /mt5/sync (EA ou bridge)
     bridge_status = Column(String, default="disconnected")  # disconnected | pending | running | safety_stop | error
     bridge_error = Column(String, nullable=True)
+    # Change ce champ (date/heure) = signal au bridge de redemarrer le worker de ce compte,
+    # meme si identifiants et reglages n'ont pas change (ex: sortir d'un arret de securite).
+    force_restart_requested_at = Column(DateTime, nullable=True)
 
     user = relationship("User", back_populates="mt5_connection")
 
@@ -154,6 +157,17 @@ class AdminSession(Base):
     expires_at = Column(DateTime, nullable=False)
 
     admin = relationship("AdminUser", back_populates="sessions")
+
+
+class AdminNote(Base):
+    """Note interne sur un client, ecrite par un admin, jamais visible du client."""
+    __tablename__ = "admin_notes"
+
+    id = Column(String, primary_key=True, default=gen_id)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    admin_id = Column(String, ForeignKey("admin_users.id"), nullable=False)
+    body = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
 
 
 class LegalDocument(Base):
