@@ -39,6 +39,9 @@ class DashboardOut(BaseModel):
     openTrades: int
     profileComplete: bool
     subscriptionStatus: str
+    # Statut affiché à l'écran d'accueil : active | paused | safety_stop | not_connected
+    robotStatus: str = "not_connected"
+    robotStatusMessage: Optional[str] = None
 
 
 class RobotOut(BaseModel):
@@ -209,5 +212,26 @@ class BridgeAccountOut(BaseModel):
 
 
 class BridgeStatusIn(BaseModel):
-    status: str  # pending | running | error
+    status: str  # pending | running | safety_stop | error
     error: Optional[str] = None
+
+
+class LegalDocumentOut(BaseModel):
+    slug: str
+    title: str
+    version: str
+    body: str
+
+
+class LegalStatusOut(BaseModel):
+    pending: List[LegalDocumentOut]
+    allAccepted: bool
+
+
+class LegalAcceptIn(BaseModel):
+    slugs: List[str]
+
+
+class LegalAcceptOut(BaseModel):
+    ok: bool
+    accepted: List[str]

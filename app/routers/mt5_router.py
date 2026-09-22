@@ -6,6 +6,7 @@ from .. import models, schemas
 from ..database import get_db
 from ..auth import get_current_user
 from ..crypto_utils import encrypt_secret
+from .legal_router import legal_gate_ok
 
 router = APIRouter(prefix="/api/mt5", tags=["mt5"])
 
@@ -29,6 +30,14 @@ def get_status(user: models.User = Depends(get_current_user), db: Session = Depe
 
 @router.post("/connect", response_model=schemas.MT5ConnectOut)
 def connect(payload: schemas.MT5ConnectIn, user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    # Les 3 documents (CGU, risques, autorisation MT5) doivent être acceptés à leur
+    # dernière version avant de donner à Lotabot le mot de passe du compte de trading.
+    if not legal_gate_ok(user, db):
+        raise HTTPException(
+            status_code=403,
+            detail="Merci d'abord d'accepter les conditions d'utilisation avant de connecter ton compte MT5.",
+        )
+
     m = user.mt5_connection
     m.connected = True
     m.broker_server = payload.brokerServer

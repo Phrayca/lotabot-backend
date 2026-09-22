@@ -15,6 +15,11 @@ JOURS_FR = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanc
 MOIS_FR = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet",
            "août", "septembre", "octobre", "novembre", "décembre"]
 
+SAFETY_STOP_MESSAGE = (
+    "Le robot s'est arrêté automatiquement après une baisse trop importante depuis son plus haut. "
+    "Il reste en pause sur ce compte ; contacte le support pour le relancer."
+)
+
 
 def _day_label(d: datetime, today: datetime) -> str:
     delta = (today.date() - d.date()).days
@@ -41,6 +46,21 @@ def _week_change_pct(balance: float, week_trades: list) -> float:
     return round(closed_pnl / start_balance * 100, 1)
 
 
+def _robot_status(mt5, robot) -> tuple[str, str | None]:
+    """Statut honnête affiché à l'écran d'accueil : ce que le robot FAIT vraiment,
+    pas seulement le réglage que le client a choisi. Un arrêt de sécurité déclenché
+    par le bridge doit se voir ici, même si le client n'a pas désactivé le robot."""
+    if not mt5 or not mt5.connected:
+        return "not_connected", None
+    if mt5.bridge_status == "safety_stop":
+        return "safety_stop", mt5.bridge_error or SAFETY_STOP_MESSAGE
+    if mt5.bridge_status == "error":
+        return "not_connected", mt5.bridge_error
+    if not robot or not robot.active:
+        return "paused", None
+    return "active", None
+
+
 @router.get("/dashboard", response_model=schemas.DashboardOut)
 def dashboard(user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
     enforce_trial_expiry(user, db)
@@ -59,6 +79,7 @@ def dashboard(user: models.User = Depends(get_current_user), db: Session = Depen
 
     balance_usd = user.balance
     profile_complete = bool(user.email and user.dob and user.city)
+    robot_status, robot_status_message = _robot_status(mt5, robot)
 
     return schemas.DashboardOut(
         fullName=user.full_name,
@@ -74,6 +95,8 @@ def dashboard(user: models.User = Depends(get_current_user), db: Session = Depen
         openTrades=open_trades,
         profileComplete=profile_complete,
         subscriptionStatus=sub.status if sub else "trialing",
+        robotStatus=robot_status,
+        robotStatusMessage=robot_status_message,
     )
 
 

@@ -33,6 +33,7 @@ class User(Base):
     mt5_connection = relationship("MT5Connection", uselist=False, back_populates="user", cascade="all, delete-orphan")
     trades = relationship("Trade", back_populates="user", cascade="all, delete-orphan")
     notification_prefs = relationship("NotificationPrefs", uselist=False, back_populates="user", cascade="all, delete-orphan")
+    legal_acceptances = relationship("LegalAcceptance", back_populates="user", cascade="all, delete-orphan")
 
 
 class RobotSettings(Base):
@@ -86,7 +87,7 @@ class MT5Connection(Base):
     trading_password_enc = Column(String, nullable=True)  # mot de passe MT5 (droits de trading), chiffré
     demo_mode = Column(Boolean, default=True)
     sync_token = Column(String, unique=True, nullable=True)  # code personnel pour /mt5/sync (EA ou bridge)
-    bridge_status = Column(String, default="disconnected")  # disconnected | pending | running | error
+    bridge_status = Column(String, default="disconnected")  # disconnected | pending | running | safety_stop | error
     bridge_error = Column(String, nullable=True)
 
     user = relationship("User", back_populates="mt5_connection")
@@ -128,3 +129,30 @@ class NotificationPrefs(Base):
     promos = Column(Boolean, default=False)
 
     user = relationship("User", back_populates="notification_prefs")
+
+
+class LegalDocument(Base):
+    """Un document (CGU, avertissement sur les risques, autorisation de trading MT5).
+    Une nouvelle ligne = une nouvelle version publiée ; l'ancienne reste en base pour l'historique."""
+    __tablename__ = "legal_documents"
+
+    id = Column(String, primary_key=True, default=gen_id)
+    slug = Column(String, nullable=False, index=True)  # cgu | risques | autorisation-mt5
+    title = Column(String, nullable=False)
+    version = Column(String, nullable=False)  # ex: "1.0"
+    body = Column(Text, nullable=False)
+    published_at = Column(DateTime, default=datetime.utcnow)
+
+
+class LegalAcceptance(Base):
+    """Une acceptation d'un client pour UNE version précise d'UN document : la preuve."""
+    __tablename__ = "legal_acceptances"
+
+    id = Column(String, primary_key=True, default=gen_id)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    slug = Column(String, nullable=False)
+    version = Column(String, nullable=False)
+    accepted_at = Column(DateTime, default=datetime.utcnow)
+    ip_address = Column(String, nullable=True)
+
+    user = relationship("User", back_populates="legal_acceptances")

@@ -42,6 +42,8 @@ app.include_router(subscription_router.router)
 app.include_router(referral_router.router)
 app.include_router(mt5_router.router)
 app.include_router(internal_router.router)
+from app.routers import legal_router
+app.include_router(legal_router.router)
 
 
 @app.on_event("startup")
