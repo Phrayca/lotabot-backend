@@ -1,6 +1,7 @@
 import os
 import secrets
 from fastapi import APIRouter, Depends, Header, HTTPException
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from .. import models, schemas
@@ -20,6 +21,22 @@ def _check_secret(x_internal_secret: str = Header(default=None, alias="X-Interna
         or not secrets.compare_digest(x_internal_secret.encode(), BRIDGE_INTERNAL_SECRET.encode())
     ):
         raise HTTPException(status_code=401, detail="Clé interne invalide")
+
+
+@router.post("/migrate", include_in_schema=False)
+def migrate(db: Session = Depends(get_db), _=Depends(_check_secret)):
+    """A appeler UNE FOIS apres ce deploiement (puis a nouveau seulement si une future mise a
+    jour ajoute une colonne a une table qui existe deja : create_all ne le fait jamais tout
+    seul, contrairement a la creation d'une table entierement nouvelle)."""
+    statements = [
+        "ALTER TABLE mt5_connections ADD COLUMN IF NOT EXISTS force_restart_requested_at TIMESTAMP",
+    ]
+    applied = []
+    for stmt in statements:
+        db.execute(text(stmt))
+        applied.append(stmt)
+    db.commit()
+    return {"ok": True, "applied": applied}
 
 
 @router.get("/accounts", response_model=list[schemas.BridgeAccountOut])
