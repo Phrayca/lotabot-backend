@@ -10,7 +10,10 @@ router = APIRouter(prefix="/api/courses", tags=["courses"])
 
 @router.get("", response_model=schemas.CoursesOut)
 def list_courses(db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
-    courses = db.query(models.Course).order_by(models.Course.order).all()
+    # order en second critere : si plusieurs cours ont le meme "order" (souvent 0 par defaut,
+    # tant que personne ne l'a explicitement fixe), l'affichage reste au moins stable et
+    # previsible (du plus court au plus long) plutot que dans un ordre qui varie.
+    courses = db.query(models.Course).order_by(models.Course.order, models.Course.duration_min).all()
     return schemas.CoursesOut(courses=[
         schemas.CourseOut(id=c.id, title=c.title, durationMin=c.duration_min, metaLabel=c.meta_label, premium=c.premium)
         for c in courses
