@@ -316,6 +316,64 @@ class AdminNotesOut(BaseModel):
     notes: List[AdminNoteOut]
 
 
+class SupportMessageOut(BaseModel):
+    id: str
+    senderType: str  # client | admin
+    senderLabel: Optional[str] = None
+    body: str
+    createdAt: datetime
+
+
+class SupportTicketOut(BaseModel):
+    id: str
+    subject: str
+    status: str
+    createdAt: datetime
+    updatedAt: datetime
+    lastMessage: Optional[str] = None
+
+
+class SupportTicketsOut(BaseModel):
+    tickets: List[SupportTicketOut]
+
+
+class SupportTicketDetailOut(BaseModel):
+    id: str
+    subject: str
+    status: str
+    createdAt: datetime
+    messages: List[SupportMessageOut]
+
+
+class SupportTicketCreateIn(BaseModel):
+    subject: str
+    body: str
+
+
+class SupportMessageIn(BaseModel):
+    body: str
+
+
+class AdminSupportTicketOut(BaseModel):
+    id: str
+    clientId: str
+    clientName: str
+    subject: str
+    status: str
+    createdAt: datetime
+    updatedAt: datetime
+    lastMessage: Optional[str] = None
+    lastSenderType: Optional[str] = None
+
+
+class AdminSupportTicketsOut(BaseModel):
+    tickets: List[AdminSupportTicketOut]
+
+
+class AdminSupportStatusIn(BaseModel):
+    status: str  # open | in_progress | resolved
+
+
 class LegalDocumentOut(BaseModel):
     slug: str
     title: str

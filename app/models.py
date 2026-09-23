@@ -34,6 +34,7 @@ class User(Base):
     trades = relationship("Trade", back_populates="user", cascade="all, delete-orphan")
     notification_prefs = relationship("NotificationPrefs", uselist=False, back_populates="user", cascade="all, delete-orphan")
     legal_acceptances = relationship("LegalAcceptance", back_populates="user", cascade="all, delete-orphan")
+    support_tickets = relationship("SupportTicket", back_populates="user", cascade="all, delete-orphan")
 
 
 class RobotSettings(Base):
@@ -168,6 +169,38 @@ class AdminNote(Base):
     admin_id = Column(String, ForeignKey("admin_users.id"), nullable=False)
     body = Column(Text, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class SupportTicket(Base):
+    """Une conversation de support entre un client et l'equipe Lotabot."""
+    __tablename__ = "support_tickets"
+
+    id = Column(String, primary_key=True, default=gen_id)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    subject = Column(String, nullable=False)
+    status = Column(String, default="open")  # open | in_progress | resolved
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User", back_populates="support_tickets")
+    messages = relationship(
+        "SupportMessage", back_populates="ticket", cascade="all, delete-orphan",
+        order_by="SupportMessage.created_at",
+    )
+
+
+class SupportMessage(Base):
+    """Un message dans une conversation de support (cote client ou cote admin)."""
+    __tablename__ = "support_messages"
+
+    id = Column(String, primary_key=True, default=gen_id)
+    ticket_id = Column(String, ForeignKey("support_tickets.id"), nullable=False)
+    sender_type = Column(String, nullable=False)  # client | admin
+    sender_label = Column(String, nullable=True)  # nom du client ou e-mail de l'admin, pour l'affichage
+    body = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    ticket = relationship("SupportTicket", back_populates="messages")
 
 
 class LegalDocument(Base):

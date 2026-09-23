@@ -23,6 +23,7 @@ from sqlalchemy.orm import Session
 from .. import models, schemas
 from ..database import get_db
 from .legal_router import pending_documents
+from .support_router import _to_detail as _to_support_detail
 from .trades_router import _robot_status, _week_change_pct
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
@@ -317,3 +318,85 @@ def add_note(
     db.add(models.AdminNote(user_id=client_id, admin_id=admin.id, body=body))
     db.commit()
     return list_notes(client_id, admin, db)
+
+
+# ---------------------------------------------------------------------------
+# Support (cote admin) : voit toutes les conversations, repond, change le statut.
+# La mise en forme des messages reutilise support_router._to_detail (cote client)
+# pour ne jamais avoir deux facons differentes d'afficher la meme conversation.
+# ---------------------------------------------------------------------------
+
+def _to_admin_ticket_out(t: models.SupportTicket) -> schemas.AdminSupportTicketOut:
+    last = t.messages[-1] if t.messages else None
+    return schemas.AdminSupportTicketOut(
+        id=t.id, clientId=t.user_id, clientName=t.user.full_name, subject=t.subject, status=t.status,
+        createdAt=t.created_at, updatedAt=t.updated_at,
+        lastMessage=last.body if last else None, lastSenderType=last.sender_type if last else None,
+    )
+
+
+@router.get("/support", response_model=schemas.AdminSupportTicketsOut)
+def admin_list_support_tickets(
+    status: Optional[str] = None,
+    _admin: models.AdminUser = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    query = db.query(models.SupportTicket)
+    if status:
+        query = query.filter(models.SupportTicket.status == status)
+    tickets = query.order_by(models.SupportTicket.updated_at.desc()).all()
+    return schemas.AdminSupportTicketsOut(tickets=[_to_admin_ticket_out(t) for t in tickets])
+
+
+def _get_any_ticket_or_404(ticket_id: str, db: Session) -> models.SupportTicket:
+    ticket = db.query(models.SupportTicket).filter(models.SupportTicket.id == ticket_id).first()
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Conversation introuvable")
+    return ticket
+
+
+@router.get("/support/{ticket_id}", response_model=schemas.SupportTicketDetailOut)
+def admin_get_ticket(
+    ticket_id: str,
+    _admin: models.AdminUser = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    return _to_support_detail(_get_any_ticket_or_404(ticket_id, db))
+
+
+@router.post("/support/{ticket_id}/reply", response_model=schemas.SupportTicketDetailOut)
+def admin_reply(
+    ticket_id: str,
+    payload: schemas.SupportMessageIn,
+    admin: models.AdminUser = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    ticket = _get_any_ticket_or_404(ticket_id, db)
+    body = payload.body.strip()
+    if not body:
+        raise HTTPException(status_code=400, detail="Le message est vide")
+
+    db.add(models.SupportMessage(ticket_id=ticket.id, sender_type="admin", sender_label=admin.email, body=body))
+    if ticket.status == "open":
+        ticket.status = "in_progress"
+    ticket.updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(ticket)
+    return _to_support_detail(ticket)
+
+
+@router.put("/support/{ticket_id}/status", response_model=schemas.SupportTicketDetailOut)
+def admin_set_ticket_status(
+    ticket_id: str,
+    payload: schemas.AdminSupportStatusIn,
+    _admin: models.AdminUser = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    if payload.status not in ("open", "in_progress", "resolved"):
+        raise HTTPException(status_code=400, detail="Statut invalide")
+    ticket = _get_any_ticket_or_404(ticket_id, db)
+    ticket.status = payload.status
+    ticket.updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(ticket)
+    return _to_support_detail(ticket)

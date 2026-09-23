@@ -17,6 +17,7 @@ from .routers import (
     internal_router,
     legal_router,
     admin_router,
+    support_router,
 )
 
 load_dotenv()
@@ -46,6 +47,7 @@ app.include_router(mt5_router.router)
 app.include_router(internal_router.router)
 app.include_router(legal_router.router)
 app.include_router(admin_router.router)
+app.include_router(support_router.router)
 
 
 @app.on_event("startup")
