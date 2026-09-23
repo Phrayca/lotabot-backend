@@ -18,12 +18,24 @@ from ..auth import get_current_user
 router = APIRouter(prefix="/api/support", tags=["support"])
 
 
+def _last_message_time(ticket: models.SupportTicket, sender_type: str):
+    times = [m.created_at for m in ticket.messages if m.sender_type == sender_type]
+    return max(times) if times else None
+
+
+def _has_unread(last_read_at, last_other_time) -> bool:
+    if last_other_time is None:
+        return False
+    return last_read_at is None or last_other_time > last_read_at
+
+
 def _to_ticket_out(t: models.SupportTicket) -> schemas.SupportTicketOut:
     last = t.messages[-1] if t.messages else None
     return schemas.SupportTicketOut(
         id=t.id, subject=t.subject, status=t.status,
         createdAt=t.created_at, updatedAt=t.updated_at,
         lastMessage=last.body if last else None,
+        hasUnread=_has_unread(t.client_last_read_at, _last_message_time(t, "admin")),
     )
 
 
@@ -82,9 +94,21 @@ def _get_own_ticket_or_404(ticket_id: str, user: models.User, db: Session) -> mo
     return ticket
 
 
+@router.get("/unread-count", response_model=schemas.UnreadCountOut)
+def unread_count(user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    tickets = db.query(models.SupportTicket).filter(models.SupportTicket.user_id == user.id).all()
+    count = sum(1 for t in tickets if _has_unread(t.client_last_read_at, _last_message_time(t, "admin")))
+    return schemas.UnreadCountOut(count=count)
+
+
 @router.get("/{ticket_id}", response_model=schemas.SupportTicketDetailOut)
 def get_ticket(ticket_id: str, user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
-    return _to_detail(_get_own_ticket_or_404(ticket_id, user, db))
+    ticket = _get_own_ticket_or_404(ticket_id, user, db)
+    # Ouvrir la conversation = l'avoir lue : efface le badge "non lu" cote client.
+    ticket.client_last_read_at = datetime.utcnow()
+    db.commit()
+    db.refresh(ticket)
+    return _to_detail(ticket)
 
 
 @router.post("/{ticket_id}/messages", response_model=schemas.SupportTicketDetailOut)
@@ -104,6 +128,7 @@ def add_message(
     if ticket.status == "resolved":
         ticket.status = "open"
     ticket.updated_at = datetime.utcnow()
+    ticket.client_last_read_at = ticket.updated_at
     db.commit()
     db.refresh(ticket)
     return _to_detail(ticket)

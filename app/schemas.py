@@ -331,6 +331,7 @@ class SupportTicketOut(BaseModel):
     createdAt: datetime
     updatedAt: datetime
     lastMessage: Optional[str] = None
+    hasUnread: bool = False
 
 
 class SupportTicketsOut(BaseModel):
@@ -364,6 +365,7 @@ class AdminSupportTicketOut(BaseModel):
     updatedAt: datetime
     lastMessage: Optional[str] = None
     lastSenderType: Optional[str] = None
+    hasUnread: bool = False
 
 
 class AdminSupportTicketsOut(BaseModel):
@@ -372,6 +374,14 @@ class AdminSupportTicketsOut(BaseModel):
 
 class AdminSupportStatusIn(BaseModel):
     status: str  # open | in_progress | resolved
+
+
+class UnreadCountOut(BaseModel):
+    count: int
+
+
+class AdminDeleteClientIn(BaseModel):
+    confirmPhone: str
 
 
 class LegalDocumentOut(BaseModel):

@@ -23,7 +23,7 @@ from sqlalchemy.orm import Session
 from .. import models, schemas
 from ..database import get_db
 from .legal_router import pending_documents
-from .support_router import _to_detail as _to_support_detail
+from .support_router import _has_unread, _last_message_time, _to_detail as _to_support_detail
 from .trades_router import _robot_status, _week_change_pct
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
@@ -332,6 +332,7 @@ def _to_admin_ticket_out(t: models.SupportTicket) -> schemas.AdminSupportTicketO
         id=t.id, clientId=t.user_id, clientName=t.user.full_name, subject=t.subject, status=t.status,
         createdAt=t.created_at, updatedAt=t.updated_at,
         lastMessage=last.body if last else None, lastSenderType=last.sender_type if last else None,
+        hasUnread=_has_unread(t.admin_last_read_at, _last_message_time(t, "client")),
     )
 
 
@@ -355,13 +356,28 @@ def _get_any_ticket_or_404(ticket_id: str, db: Session) -> models.SupportTicket:
     return ticket
 
 
+@router.get("/support/unread-count", response_model=schemas.UnreadCountOut)
+def admin_unread_count(
+    _admin: models.AdminUser = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    tickets = db.query(models.SupportTicket).all()
+    count = sum(1 for t in tickets if _has_unread(t.admin_last_read_at, _last_message_time(t, "client")))
+    return schemas.UnreadCountOut(count=count)
+
+
 @router.get("/support/{ticket_id}", response_model=schemas.SupportTicketDetailOut)
 def admin_get_ticket(
     ticket_id: str,
     _admin: models.AdminUser = Depends(get_current_admin),
     db: Session = Depends(get_db),
 ):
-    return _to_support_detail(_get_any_ticket_or_404(ticket_id, db))
+    ticket = _get_any_ticket_or_404(ticket_id, db)
+    # Ouvrir la conversation = l'avoir lue : efface le badge "non lu" cote admin.
+    ticket.admin_last_read_at = datetime.utcnow()
+    db.commit()
+    db.refresh(ticket)
+    return _to_support_detail(ticket)
 
 
 @router.post("/support/{ticket_id}/reply", response_model=schemas.SupportTicketDetailOut)
@@ -380,6 +396,7 @@ def admin_reply(
     if ticket.status == "open":
         ticket.status = "in_progress"
     ticket.updated_at = datetime.utcnow()
+    ticket.admin_last_read_at = ticket.updated_at
     db.commit()
     db.refresh(ticket)
     return _to_support_detail(ticket)
@@ -400,3 +417,30 @@ def admin_set_ticket_status(
     db.commit()
     db.refresh(ticket)
     return _to_support_detail(ticket)
+
+
+@router.delete("/clients/{client_id}")
+def delete_client(
+    client_id: str,
+    payload: schemas.AdminDeleteClientIn,
+    admin: models.AdminUser = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    """Supprime DEFINITIVEMENT un compte client et tout ce qui lui appartient : profil,
+    abonnement, connexion MT5, trades, acceptations de contrats, conversations de support.
+    Protege par une confirmation explicite (le numero de telephone exact du client), pour
+    eviter une suppression par erreur en un clic."""
+    user = _get_client_or_404(client_id, db)
+    if payload.confirmPhone.strip() != user.phone:
+        raise HTTPException(
+            status_code=400,
+            detail="Confirmation invalide : recopie exactement le numéro de téléphone du client.",
+        )
+
+    # AdminNote n'a pas de relation cascade depuis User (c'est volontaire : une note reste liee
+    # a l'admin qui l'a ecrite) ; on la supprime nous-memes avant, sinon la contrainte de cle
+    # etrangere bloquerait la suppression du client.
+    db.query(models.AdminNote).filter(models.AdminNote.user_id == user.id).delete()
+    db.delete(user)
+    db.commit()
+    return {"ok": True}

@@ -181,6 +181,9 @@ class SupportTicket(Base):
     status = Column(String, default="open")  # open | in_progress | resolved
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow)
+    # Jusqu'ou chaque cote a lu la conversation : sert a calculer les badges "non lu".
+    client_last_read_at = Column(DateTime, nullable=True)
+    admin_last_read_at = Column(DateTime, nullable=True)
 
     user = relationship("User", back_populates="support_tickets")
     messages = relationship(

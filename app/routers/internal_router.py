@@ -30,6 +30,8 @@ def migrate(db: Session = Depends(get_db), _=Depends(_check_secret)):
     seul, contrairement a la creation d'une table entierement nouvelle)."""
     statements = [
         "ALTER TABLE mt5_connections ADD COLUMN IF NOT EXISTS force_restart_requested_at TIMESTAMP",
+        "ALTER TABLE support_tickets ADD COLUMN IF NOT EXISTS client_last_read_at TIMESTAMP",
+        "ALTER TABLE support_tickets ADD COLUMN IF NOT EXISTS admin_last_read_at TIMESTAMP",
     ]
     applied = []
     for stmt in statements:
