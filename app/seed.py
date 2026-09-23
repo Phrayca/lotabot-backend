@@ -110,10 +110,23 @@ def make_referral_code(full_name: str) -> str:
 
 
 def seed_courses(db: Session):
-    existing_titles = {c.title for c in db.query(models.Course).all()}
+    """Insere les formations manquantes ET met a jour celles qui existent deja, pour que
+    l'ordre, le texte et les autres champs restent toujours synchronises avec DEFAULT_COURSES
+    ci-dessus. Avant, une formation deja creee n'etait plus jamais mise a jour meme apres
+    avoir change ce fichier : c'est ce qui laissait un ordre incoherent et du texte manquant
+    en production. Cette fonction tourne a chaque demarrage du serveur (voir main.py), donc
+    un simple redeploiement suffit desormais a propager un changement fait ici."""
+    existing = {c.title: c for c in db.query(models.Course).all()}
     for c in DEFAULT_COURSES:
-        if c["title"] not in existing_titles:
+        row = existing.get(c["title"])
+        if row is None:
             db.add(models.Course(**c))
+        else:
+            row.duration_min = c["duration_min"]
+            row.meta_label = c["meta_label"]
+            row.premium = c["premium"]
+            row.order = c["order"]
+            row.body = c["body"]
     db.commit()
 
 
