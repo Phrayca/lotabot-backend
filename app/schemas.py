@@ -50,6 +50,7 @@ class RobotOut(BaseModel):
     lot: float
     maxPositions: int
     plan: str
+    pair: str = "XAUUSD"
 
 
 class RobotIn(BaseModel):
@@ -159,6 +160,7 @@ class MT5ConnectIn(BaseModel):
     brokerServer: str
     accountNumber: str
     password: str
+    pair: str = "XAUUSD"  # XAUUSD | EURUSD | BTCUSD
 
 
 class MT5ConnectOut(BaseModel):
@@ -209,6 +211,7 @@ class BridgeAccountOut(BaseModel):
     riskLevel: Optional[int] = None
     lot: Optional[float] = None
     maxPositions: Optional[int] = None
+    pair: str = "XAUUSD"
     # Change de valeur = signal au bridge de redemarrer ce worker (ex: sortir d'un arret de securite)
     restartNonce: Optional[str] = None
 
@@ -286,6 +289,7 @@ class AdminClientDetailOut(BaseModel):
     riskLevel: int
     lot: float
     maxPositions: int
+    pair: str = "XAUUSD"
     balanceUsd: float
     weekChangePct: float
     openTrades: int

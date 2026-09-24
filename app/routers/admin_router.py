@@ -196,6 +196,7 @@ def get_client(
         riskLevel=robot.risk_level if robot else 1,
         lot=robot.lot if robot else 0.01,
         maxPositions=robot.max_positions if robot else 1,
+        pair=robot.pair if robot else "XAUUSD",
         balanceUsd=round(user.balance, 2),
         weekChangePct=week_change_pct,
         openTrades=open_trades,

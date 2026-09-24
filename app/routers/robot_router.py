@@ -12,7 +12,10 @@ router = APIRouter(prefix="/api/robot", tags=["robot"])
 def _to_robot_out(user: models.User) -> schemas.RobotOut:
     r = user.robot_settings
     plan = user.subscription.plan if user.subscription else "classique"
-    return schemas.RobotOut(active=r.active, riskLevel=r.risk_level, lot=r.lot, maxPositions=r.max_positions, plan=plan)
+    return schemas.RobotOut(
+        active=r.active, riskLevel=r.risk_level, lot=r.lot, maxPositions=r.max_positions,
+        plan=plan, pair=r.pair,
+    )
 
 
 @router.get("", response_model=schemas.RobotOut)

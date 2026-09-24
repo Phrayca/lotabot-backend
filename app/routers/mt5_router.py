@@ -8,6 +8,8 @@ from ..auth import get_current_user
 from ..crypto_utils import encrypt_secret
 from .legal_router import legal_gate_ok
 
+ALLOWED_PAIRS = ("XAUUSD", "EURUSD", "BTCUSD")
+
 router = APIRouter(prefix="/api/mt5", tags=["mt5"])
 
 
@@ -37,6 +39,8 @@ def connect(payload: schemas.MT5ConnectIn, user: models.User = Depends(get_curre
             status_code=403,
             detail="Merci d'abord d'accepter les conditions d'utilisation avant de connecter ton compte MT5.",
         )
+    if payload.pair not in ALLOWED_PAIRS:
+        raise HTTPException(status_code=400, detail="Paire invalide")
 
     m = user.mt5_connection
     m.connected = True
@@ -51,10 +55,13 @@ def connect(payload: schemas.MT5ConnectIn, user: models.User = Depends(get_curre
 
     # Dès la connexion d'un compte, on repart sur un réglage prudent par défaut
     # (lot 0.01, 1 position), quel que soit ce qui était configuré avant.
+    # La paire est choisie a la connexion : c'est elle qui determine le profil de
+    # strategie que le bridge appliquera (voir PAIR_PROFILES cote bridge).
     robot = user.robot_settings
     if robot:
         robot.lot = 0.01
         robot.max_positions = 1
+        robot.pair = payload.pair
 
     db.commit()
     return schemas.MT5ConnectOut(demoMode=m.demo_mode)
