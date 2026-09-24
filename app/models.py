@@ -47,6 +47,12 @@ class RobotSettings(Base):
     lot = Column(Float, default=0.01)
     max_positions = Column(Integer, default=1)
     pair = Column(String, default="XAUUSD")
+    # Verrou pose par l'admin : le client ne peut PAS le lever lui-meme en rallumant son
+    # interrupteur (a la difference de "active", qu'il controle librement). Le bridge ne
+    # trade jamais tant que ce verrou est pose, quel que soit "active".
+    admin_disabled = Column(Boolean, default=False)
+    admin_disabled_reason = Column(String, nullable=True)
+    admin_disabled_at = Column(DateTime, nullable=True)
 
     user = relationship("User", back_populates="robot_settings")
 

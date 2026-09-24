@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from .. import models, schemas
 from ..database import get_db
 from ..crypto_utils import decrypt_secret
+from .robot_router import effective_active
 
 router = APIRouter(prefix="/api/internal", tags=["internal"])
 
@@ -36,6 +37,9 @@ def migrate(db: Session = Depends(get_db), _=Depends(_check_secret)):
         "ALTER TABLE support_messages ADD COLUMN IF NOT EXISTS attachment_data TEXT",
         "ALTER TABLE support_messages ADD COLUMN IF NOT EXISTS attachment_name VARCHAR",
         "ALTER TABLE support_messages ADD COLUMN IF NOT EXISTS attachment_is_image BOOLEAN DEFAULT FALSE",
+        "ALTER TABLE robot_settings ADD COLUMN IF NOT EXISTS admin_disabled BOOLEAN DEFAULT FALSE",
+        "ALTER TABLE robot_settings ADD COLUMN IF NOT EXISTS admin_disabled_reason VARCHAR",
+        "ALTER TABLE robot_settings ADD COLUMN IF NOT EXISTS admin_disabled_at TIMESTAMP",
     ]
     applied = []
     for stmt in statements:
@@ -70,7 +74,7 @@ def list_accounts(db: Session = Depends(get_db), _=Depends(_check_secret)):
             brokerServer=m.broker_server,
             accountNumber=m.account_number,
             password=password,
-            desiredActive=robot.active if robot else False,
+            desiredActive=effective_active(robot),
             riskLevel=robot.risk_level if robot else None,
             lot=robot.lot if robot else None,
             maxPositions=robot.max_positions if robot else None,

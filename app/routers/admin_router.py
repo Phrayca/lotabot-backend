@@ -23,6 +23,7 @@ from sqlalchemy.orm import Session
 from .. import models, schemas
 from ..database import get_db
 from .legal_router import pending_documents
+from .robot_router import _to_robot_out
 from .support_router import _has_unread, _last_message_time, _preview, _to_detail as _to_support_detail, _validate_attachment
 from .trades_router import _robot_status, _week_change_pct
 
@@ -197,6 +198,8 @@ def get_client(
         lot=robot.lot if robot else 0.01,
         maxPositions=robot.max_positions if robot else 1,
         pair=robot.pair if robot else "XAUUSD",
+        adminDisabled=robot.admin_disabled if robot else False,
+        adminDisabledReason=robot.admin_disabled_reason if robot else None,
         balanceUsd=round(user.balance, 2),
         weekChangePct=week_change_pct,
         openTrades=open_trades,
@@ -449,3 +452,153 @@ def delete_client(
     db.delete(user)
     db.commit()
     return {"ok": True}
+
+
+# ---------------------------------------------------------------------------
+# Verrou admin : contrairement a PUT /clients/{id}/robot (une pause ordinaire que le
+# client peut annuler a tout moment depuis l'app), ce verrou empeche le client de
+# reactiver le robot lui-meme tant que l'admin ne l'a pas leve explicitement.
+# ---------------------------------------------------------------------------
+
+@router.post("/clients/{client_id}/robot/lock", response_model=schemas.RobotOut)
+def lock_robot(
+    client_id: str,
+    payload: schemas.AdminRobotLockIn,
+    _admin: models.AdminUser = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    user = _get_client_or_404(client_id, db)
+    robot = user.robot_settings
+    if not robot:
+        raise HTTPException(status_code=400, detail="Ce client n'a pas encore de reglages robot")
+    robot.admin_disabled = True
+    robot.admin_disabled_reason = (payload.reason or "").strip()[:300] or None
+    robot.admin_disabled_at = datetime.utcnow()
+    robot.active = False  # coupe aussi tout de suite le trading, sans attendre la prochaine synchro
+    db.commit()
+    return _to_robot_out(user)
+
+
+@router.post("/clients/{client_id}/robot/unlock", response_model=schemas.RobotOut)
+def unlock_robot(
+    client_id: str,
+    _admin: models.AdminUser = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    user = _get_client_or_404(client_id, db)
+    robot = user.robot_settings
+    if not robot:
+        raise HTTPException(status_code=400, detail="Ce client n'a pas encore de reglages robot")
+    robot.admin_disabled = False
+    robot.admin_disabled_reason = None
+    robot.admin_disabled_at = None
+    db.commit()
+    return _to_robot_out(user)
+
+
+# ---------------------------------------------------------------------------
+# Contrats signes : texte complet de la version EXACTE que le client a acceptee
+# (qui peut differer de la derniere version publiee, si une nouvelle est sortie depuis
+# et que le client ne l'a pas encore re-signee), et export en PDF avec les infos du client.
+# ---------------------------------------------------------------------------
+
+def _get_signed_document(client_id: str, slug: str, version: str, db: Session):
+    user = _get_client_or_404(client_id, db)
+    acceptance = (
+        db.query(models.LegalAcceptance)
+        .filter(
+            models.LegalAcceptance.user_id == user.id,
+            models.LegalAcceptance.slug == slug,
+            models.LegalAcceptance.version == version,
+        )
+        .first()
+    )
+    if not acceptance:
+        raise HTTPException(status_code=404, detail="Ce client n'a pas accepte cette version de ce document")
+    doc = (
+        db.query(models.LegalDocument)
+        .filter(models.LegalDocument.slug == slug, models.LegalDocument.version == version)
+        .first()
+    )
+    if not doc:
+        raise HTTPException(status_code=404, detail="Version du document introuvable")
+    return user, acceptance, doc
+
+
+@router.get("/clients/{client_id}/legal/{slug}/{version}", response_model=schemas.AdminLegalDocumentTextOut)
+def get_signed_document(
+    client_id: str, slug: str, version: str,
+    _admin: models.AdminUser = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    _user, acceptance, doc = _get_signed_document(client_id, slug, version, db)
+    return schemas.AdminLegalDocumentTextOut(
+        slug=slug, title=doc.title, version=version, body=doc.body,
+        acceptedAt=acceptance.accepted_at, ipAddress=acceptance.ip_address,
+    )
+
+
+def _pdf_safe(text: str) -> str:
+    """La police de base utilisee dans le PDF (Helvetica) ne sait ecrire que du Latin-1 : un
+    tiret cadratin ou des guillemets courbes suffisent a faire planter la generation. On les
+    remplace par leur equivalent simple plutot que de risquer un plantage sur un futur texte."""
+    replacements = {
+        "\u2014": "-", "\u2013": "-",       # tirets cadratin/demi-cadratin
+        "\u2018": "'", "\u2019": "'",       # apostrophes courbes
+        "\u201c": '"', "\u201d": '"',       # guillemets anglais courbes
+        "\u2026": "...",                     # points de suspension
+        "\u00a0": " ",                       # espace insecable
+        "\u0153": "oe", "\u0152": "OE",     # ligature "œ"/"Œ"
+        "\u2022": "-",                       # puce "•"
+    }
+    for bad, good in replacements.items():
+        text = text.replace(bad, good)
+    # Filet de securite : un caractere impreviu hors Latin-1 ne doit jamais faire planter la
+    # generation du PDF (mieux vaut un "?" a cet endroit qu'aucun document telechargeable).
+    return text.encode("latin-1", errors="replace").decode("latin-1")
+
+
+@router.get("/clients/{client_id}/legal/{slug}/{version}/pdf")
+def get_signed_document_pdf(
+    client_id: str, slug: str, version: str,
+    _admin: models.AdminUser = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    user, acceptance, doc = _get_signed_document(client_id, slug, version, db)
+
+    from fpdf import FPDF
+
+    pdf = FPDF(format="A4")
+    pdf.set_auto_page_break(auto=True, margin=18)
+    pdf.add_page()
+
+    pdf.set_font("Helvetica", "B", 16)
+    pdf.cell(0, 10, "Lotabot", new_x="LMARGIN", new_y="NEXT")
+
+    pdf.set_font("Helvetica", "B", 13)
+    pdf.multi_cell(0, 8, _pdf_safe(f"{doc.title} - version {version}"))
+    pdf.ln(2)
+
+    pdf.set_font("Helvetica", "", 10)
+    infos = (
+        f"Client : {user.full_name}\n"
+        f"Telephone : {user.phone}\n"
+        f"Accepte le : {acceptance.accepted_at.strftime('%d/%m/%Y a %H:%M')} (UTC)\n"
+        f"Adresse IP au moment de l'acceptation : {acceptance.ip_address or 'inconnue'}"
+    )
+    pdf.multi_cell(0, 6, _pdf_safe(infos))
+    pdf.ln(4)
+
+    pdf.set_font("Helvetica", "", 10)
+    pdf.multi_cell(0, 6, _pdf_safe(doc.body))
+
+    pdf_bytes = bytes(pdf.output())
+    safe_phone = "".join(ch for ch in user.phone if ch.isalnum())
+    filename = f"{slug}-v{version}-{safe_phone}.pdf"
+
+    from fastapi import Response
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )

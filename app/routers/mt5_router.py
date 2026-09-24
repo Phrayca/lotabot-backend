@@ -8,6 +8,7 @@ from ..database import get_db
 from ..auth import get_current_user
 from ..crypto_utils import encrypt_secret
 from .legal_router import legal_gate_ok
+from .robot_router import effective_active
 
 ALLOWED_PAIRS = ("XAUUSD", "EURUSD", "BTCUSD")
 
@@ -170,7 +171,7 @@ def sync(sync_token: str, payload: schemas.SyncIn, db: Session = Depends(get_db)
         ok=True,
         tradesReceived=len(payload.trades),
         tradesCreated=created,
-        desiredActive=robot.active if robot else False,
+        desiredActive=effective_active(robot),
         riskLevel=robot.risk_level if robot else None,
         lot=robot.lot if robot else None,
         maxPositions=robot.max_positions if robot else None,

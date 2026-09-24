@@ -46,12 +46,18 @@ def _week_change_pct(balance: float, week_trades: list) -> float:
     return round(closed_pnl / start_balance * 100, 1)
 
 
+ADMIN_LOCK_MESSAGE = "L'équipe Lotabot a désactivé le robot sur ce compte. Contacte le support pour en savoir plus."
+
+
 def _robot_status(mt5, robot) -> tuple[str, str | None]:
     """Statut honnête affiché à l'écran d'accueil : ce que le robot FAIT vraiment,
     pas seulement le réglage que le client a choisi. Un arrêt de sécurité déclenché
-    par le bridge doit se voir ici, même si le client n'a pas désactivé le robot."""
+    par le bridge, ou un verrou pose par l'admin, doivent se voir ici, meme si le
+    client lui-meme n'a rien désactivé."""
     if not mt5 or not mt5.connected:
         return "not_connected", None
+    if robot and robot.admin_disabled:
+        return "admin_disabled", robot.admin_disabled_reason or ADMIN_LOCK_MESSAGE
     if mt5.bridge_status == "safety_stop":
         return "safety_stop", mt5.bridge_error or SAFETY_STOP_MESSAGE
     if mt5.bridge_status == "error":

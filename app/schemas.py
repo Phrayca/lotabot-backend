@@ -51,6 +51,8 @@ class RobotOut(BaseModel):
     maxPositions: int
     plan: str
     pair: str = "XAUUSD"
+    adminDisabled: bool = False
+    adminDisabledReason: Optional[str] = None
 
 
 class RobotIn(BaseModel):
@@ -290,6 +292,8 @@ class AdminClientDetailOut(BaseModel):
     lot: float
     maxPositions: int
     pair: str = "XAUUSD"
+    adminDisabled: bool = False
+    adminDisabledReason: Optional[str] = None
     balanceUsd: float
     weekChangePct: float
     openTrades: int
@@ -299,6 +303,10 @@ class AdminClientDetailOut(BaseModel):
 
 class AdminRobotActionIn(BaseModel):
     active: bool
+
+
+class AdminRobotLockIn(BaseModel):
+    reason: Optional[str] = None
 
 
 class AdminExtendSubscriptionIn(BaseModel):
@@ -318,6 +326,15 @@ class AdminNoteOut(BaseModel):
 
 class AdminNotesOut(BaseModel):
     notes: List[AdminNoteOut]
+
+
+class AdminLegalDocumentTextOut(BaseModel):
+    slug: str
+    title: str
+    version: str
+    body: str
+    acceptedAt: datetime
+    ipAddress: Optional[str] = None
 
 
 class SupportMessageOut(BaseModel):
