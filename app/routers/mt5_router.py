@@ -1,3 +1,4 @@
+import re
 import secrets
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -41,11 +42,17 @@ def connect(payload: schemas.MT5ConnectIn, user: models.User = Depends(get_curre
         )
     if payload.pair not in ALLOWED_PAIRS:
         raise HTTPException(status_code=400, detail="Paire invalide")
+    account_number = payload.accountNumber.strip()
+    if not re.fullmatch(r"\d{4,}", account_number) or account_number.strip("0") == "":
+        raise HTTPException(
+            status_code=400,
+            detail="Numéro de compte invalide : au moins 4 chiffres, et pas seulement des zéros.",
+        )
 
     m = user.mt5_connection
     m.connected = True
     m.broker_server = payload.brokerServer
-    m.account_number = payload.accountNumber
+    m.account_number = account_number
     # Chiffré, jamais stocké en clair. Seul le futur serveur de trading (le "bridge"),
     # via sa clé interne dédiée, pourra le déchiffrer pour se connecter au compte.
     m.trading_password_enc = encrypt_secret(payload.password)
