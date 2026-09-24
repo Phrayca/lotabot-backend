@@ -23,7 +23,7 @@ from sqlalchemy.orm import Session
 from .. import models, schemas
 from ..database import get_db
 from .legal_router import pending_documents
-from .support_router import _has_unread, _last_message_time, _to_detail as _to_support_detail
+from .support_router import _has_unread, _last_message_time, _preview, _to_detail as _to_support_detail, _validate_attachment
 from .trades_router import _robot_status, _week_change_pct
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
@@ -331,7 +331,7 @@ def _to_admin_ticket_out(t: models.SupportTicket) -> schemas.AdminSupportTicketO
     return schemas.AdminSupportTicketOut(
         id=t.id, clientId=t.user_id, clientName=t.user.full_name, subject=t.subject, status=t.status,
         createdAt=t.created_at, updatedAt=t.updated_at,
-        lastMessage=last.body if last else None, lastSenderType=last.sender_type if last else None,
+        lastMessage=_preview(last) if last else None, lastSenderType=last.sender_type if last else None,
         hasUnread=_has_unread(t.admin_last_read_at, _last_message_time(t, "client")),
     )
 
@@ -389,10 +389,14 @@ def admin_reply(
 ):
     ticket = _get_any_ticket_or_404(ticket_id, db)
     body = payload.body.strip()
-    if not body:
+    att_data, att_name, att_is_image = _validate_attachment(payload.attachmentData, payload.attachmentName)
+    if not body and not att_data:
         raise HTTPException(status_code=400, detail="Le message est vide")
 
-    db.add(models.SupportMessage(ticket_id=ticket.id, sender_type="admin", sender_label=admin.email, body=body))
+    db.add(models.SupportMessage(
+        ticket_id=ticket.id, sender_type="admin", sender_label=admin.email, body=body or None,
+        attachment_data=att_data, attachment_name=att_name, attachment_is_image=att_is_image,
+    ))
     if ticket.status == "open":
         ticket.status = "in_progress"
     ticket.updated_at = datetime.utcnow()

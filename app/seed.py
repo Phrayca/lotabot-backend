@@ -227,10 +227,14 @@ def make_referral_code(full_name: str) -> str:
 
 
 def seed_courses(db: Session):
-    """Insere les formations manquantes ET met a jour celles qui existent deja, pour que
-    l'ordre, le texte et les autres champs restent toujours synchronises avec DEFAULT_COURSES
-    ci-dessus. Cette fonction tourne a chaque demarrage du serveur (voir main.py), donc un
-    simple redeploiement suffit a propager un changement fait ici."""
+    """Insere les formations manquantes, met a jour celles qui existent deja, ET supprime toute
+    formation dont le titre ne correspond plus a DEFAULT_COURSES (anciens titres laisses par une
+    version precedente de ce fichier, qui restaient orphelins et vides puisque rien ne les
+    touchait plus jamais). Cette fonction tourne a chaque demarrage du serveur (voir main.py),
+    donc un simple redeploiement suffit a propager un changement fait ici."""
+    valid_titles = {c["title"] for c in DEFAULT_COURSES}
+    db.query(models.Course).filter(models.Course.title.notin_(valid_titles)).delete(synchronize_session=False)
+
     existing = {c.title: c for c in db.query(models.Course).all()}
     for c in DEFAULT_COURSES:
         row = existing.get(c["title"])

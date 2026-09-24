@@ -321,6 +321,9 @@ class SupportMessageOut(BaseModel):
     senderType: str  # client | admin
     senderLabel: Optional[str] = None
     body: str
+    attachmentData: Optional[str] = None
+    attachmentName: Optional[str] = None
+    attachmentIsImage: bool = False
     createdAt: datetime
 
 
@@ -352,7 +355,9 @@ class SupportTicketCreateIn(BaseModel):
 
 
 class SupportMessageIn(BaseModel):
-    body: str
+    body: str = ""
+    attachmentData: Optional[str] = None
+    attachmentName: Optional[str] = None
 
 
 class AdminSupportTicketOut(BaseModel):

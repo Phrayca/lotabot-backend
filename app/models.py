@@ -200,7 +200,12 @@ class SupportMessage(Base):
     ticket_id = Column(String, ForeignKey("support_tickets.id"), nullable=False)
     sender_type = Column(String, nullable=False)  # client | admin
     sender_label = Column(String, nullable=True)  # nom du client ou e-mail de l'admin, pour l'affichage
-    body = Column(Text, nullable=False)
+    body = Column(Text, nullable=True)  # peut etre vide si le message n'est qu'une piece jointe
+    # Piece jointe stockee en data URL (base64), meme principe que la photo de profil ou la
+    # piece d'identite ailleurs dans l'app : pas de service de stockage externe a configurer.
+    attachment_data = Column(Text, nullable=True)
+    attachment_name = Column(String, nullable=True)
+    attachment_is_image = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     ticket = relationship("SupportTicket", back_populates="messages")

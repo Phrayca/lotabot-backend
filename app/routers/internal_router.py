@@ -32,6 +32,10 @@ def migrate(db: Session = Depends(get_db), _=Depends(_check_secret)):
         "ALTER TABLE mt5_connections ADD COLUMN IF NOT EXISTS force_restart_requested_at TIMESTAMP",
         "ALTER TABLE support_tickets ADD COLUMN IF NOT EXISTS client_last_read_at TIMESTAMP",
         "ALTER TABLE support_tickets ADD COLUMN IF NOT EXISTS admin_last_read_at TIMESTAMP",
+        "ALTER TABLE support_messages ALTER COLUMN body DROP NOT NULL",
+        "ALTER TABLE support_messages ADD COLUMN IF NOT EXISTS attachment_data TEXT",
+        "ALTER TABLE support_messages ADD COLUMN IF NOT EXISTS attachment_name VARCHAR",
+        "ALTER TABLE support_messages ADD COLUMN IF NOT EXISTS attachment_is_image BOOLEAN DEFAULT FALSE",
     ]
     applied = []
     for stmt in statements:
