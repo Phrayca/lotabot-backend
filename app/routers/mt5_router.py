@@ -48,6 +48,23 @@ def connect(payload: schemas.MT5ConnectIn, user: models.User = Depends(get_curre
             status_code=400,
             detail="Numéro de compte invalide : au moins 4 chiffres, et pas seulement des zéros.",
         )
+    # Un meme compte MT5 chez le courtier ne doit jamais tourner sous deux profils Lotabot
+    # a la fois (deux workers essaieraient de trader sur le meme compte reel en meme temps).
+    already_used = (
+        db.query(models.MT5Connection)
+        .filter(
+            models.MT5Connection.broker_server == payload.brokerServer,
+            models.MT5Connection.account_number == account_number,
+            models.MT5Connection.connected == True,  # noqa: E712
+            models.MT5Connection.user_id != user.id,
+        )
+        .first()
+    )
+    if already_used:
+        raise HTTPException(
+            status_code=409,
+            detail="Ce compte MT5 est déjà connecté sur un autre profil Lotabot. Déconnecte-le d'abord de là-bas.",
+        )
 
     m = user.mt5_connection
     m.connected = True
