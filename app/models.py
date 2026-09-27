@@ -112,7 +112,17 @@ class Trade(Base):
     amount = Column(Float, nullable=False)
     opened_at = Column(DateTime, default=datetime.utcnow)
     status = Column(String, default="closed")  # open | closed
-    external_id = Column(String, nullable=True)  # ticket MT5 d'origine, pour éviter les doublons à la synchro
+    external_id = Column(String, nullable=True)  # ticket MT5 (position si ouvert, deal si cloture)
+    # Identifiant de la POSITION MT5 (stable du debut a la fin d'un trade, contrairement a
+    # external_id qui change quand un trade passe d'ouvert a cloture) : sert a retrouver et
+    # completer la meme ligne plutot que d'en creer une nouvelle a la cloture.
+    position_id = Column(String, nullable=True, index=True)
+    closed_at = Column(DateTime, nullable=True)
+    open_price = Column(Float, nullable=True)
+    close_price = Column(Float, nullable=True)
+    lots = Column(Float, nullable=True)
+    sl = Column(Float, nullable=True)
+    tp = Column(Float, nullable=True)
 
     user = relationship("User", back_populates="trades")
 
