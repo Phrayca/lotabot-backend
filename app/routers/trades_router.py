@@ -116,24 +116,27 @@ def history(range: str = "all", user: models.User = Depends(get_current_user)):
 
     now = datetime.utcnow()
     trades_all = user.trades
+    # Filet de securite : si une ligne tres ancienne (ou mal formee) a l'heure d'ouverture ET
+    # de fermeture vides, on ne veut jamais planter dessus - juste la laisser en dernier.
+    sort_key = lambda t: t.closed_at or t.opened_at or datetime.min  # noqa: E731
     if range == "today":
         start = datetime(now.year, now.month, now.day)
-        trades_all = [t for t in trades_all if (t.closed_at or t.opened_at) >= start]
+        trades_all = [t for t in trades_all if sort_key(t) >= start]
     elif range == "yesterday":
         start = datetime(now.year, now.month, now.day) - timedelta(days=1)
         end = datetime(now.year, now.month, now.day)
-        trades_all = [t for t in trades_all if start <= (t.closed_at or t.opened_at) < end]
+        trades_all = [t for t in trades_all if start <= sort_key(t) < end]
     elif range in ("week", "month"):
         start = now - timedelta(days=RANGE_DAYS[range])
-        trades_all = [t for t in trades_all if (t.closed_at or t.opened_at) >= start]
+        trades_all = [t for t in trades_all if sort_key(t) >= start]
 
-    trades_sorted = sorted(trades_all, key=lambda t: t.closed_at or t.opened_at, reverse=True)
+    trades_sorted = sorted(trades_all, key=sort_key, reverse=True)
 
     groups = OrderedDict()
     total_profit_usd = 0.0
     total_loss_usd = 0.0
     for t in trades_sorted:
-        label_time = t.closed_at or t.opened_at
+        label_time = sort_key(t)
         label = _day_label(label_time, now)
         groups.setdefault(label, []).append(schemas.TradeOut(
             pair=t.pair,
