@@ -40,6 +40,14 @@ def migrate(db: Session = Depends(get_db), _=Depends(_check_secret)):
         "ALTER TABLE robot_settings ADD COLUMN IF NOT EXISTS admin_disabled BOOLEAN DEFAULT FALSE",
         "ALTER TABLE robot_settings ADD COLUMN IF NOT EXISTS admin_disabled_reason VARCHAR",
         "ALTER TABLE robot_settings ADD COLUMN IF NOT EXISTS admin_disabled_at TIMESTAMP",
+        "ALTER TABLE trades ADD COLUMN IF NOT EXISTS position_id VARCHAR",
+        "ALTER TABLE trades ADD COLUMN IF NOT EXISTS closed_at TIMESTAMP",
+        "ALTER TABLE trades ADD COLUMN IF NOT EXISTS open_price DOUBLE PRECISION",
+        "ALTER TABLE trades ADD COLUMN IF NOT EXISTS close_price DOUBLE PRECISION",
+        "ALTER TABLE trades ADD COLUMN IF NOT EXISTS lots DOUBLE PRECISION",
+        "ALTER TABLE trades ADD COLUMN IF NOT EXISTS sl DOUBLE PRECISION",
+        "ALTER TABLE trades ADD COLUMN IF NOT EXISTS tp DOUBLE PRECISION",
+        "CREATE INDEX IF NOT EXISTS ix_trades_position_id ON trades (position_id)",
     ]
     applied = []
     for stmt in statements:
