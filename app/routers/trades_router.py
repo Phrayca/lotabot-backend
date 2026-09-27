@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 from collections import OrderedDict
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from .. import models, schemas
@@ -106,21 +106,61 @@ def dashboard(user: models.User = Depends(get_current_user), db: Session = Depen
     )
 
 
+RANGE_DAYS = {"today": 0, "yesterday": 1, "week": 7, "month": 30}
+
+
 @router.get("/history", response_model=schemas.HistoryOut)
-def history(user: models.User = Depends(get_current_user)):
+def history(range: str = "all", user: models.User = Depends(get_current_user)):
+    if range not in ("all", *RANGE_DAYS):
+        raise HTTPException(status_code=400, detail="Periode invalide")
+
     now = datetime.utcnow()
-    trades_sorted = sorted(user.trades, key=lambda t: t.opened_at, reverse=True)
+    trades_all = user.trades
+    if range == "today":
+        start = datetime(now.year, now.month, now.day)
+        trades_all = [t for t in trades_all if (t.closed_at or t.opened_at) >= start]
+    elif range == "yesterday":
+        start = datetime(now.year, now.month, now.day) - timedelta(days=1)
+        end = datetime(now.year, now.month, now.day)
+        trades_all = [t for t in trades_all if start <= (t.closed_at or t.opened_at) < end]
+    elif range in ("week", "month"):
+        start = now - timedelta(days=RANGE_DAYS[range])
+        trades_all = [t for t in trades_all if (t.closed_at or t.opened_at) >= start]
+
+    trades_sorted = sorted(trades_all, key=lambda t: t.closed_at or t.opened_at, reverse=True)
 
     groups = OrderedDict()
+    total_profit_usd = 0.0
+    total_loss_usd = 0.0
     for t in trades_sorted:
-        label = _day_label(t.opened_at, now)
+        label_time = t.closed_at or t.opened_at
+        label = _day_label(label_time, now)
         groups.setdefault(label, []).append(schemas.TradeOut(
             pair=t.pair,
-            time=t.opened_at.strftime("%H:%M"),
+            time=label_time.strftime("%H:%M"),
             amount=round(t.amount * EXCHANGE_RATE_USD_FCFA, 2),
             amountUsd=round(t.amount, 2),
+            status=t.status,
+            openPrice=t.open_price,
+            closePrice=t.close_price,
+            lots=t.lots,
+            sl=t.sl,
+            tp=t.tp,
+            openedAt=t.opened_at,
+            closedAt=t.closed_at,
         ))
+        if t.status == "closed":
+            if t.amount >= 0:
+                total_profit_usd += t.amount
+            else:
+                total_loss_usd += t.amount
 
-    return schemas.HistoryOut(groups=[
-        schemas.DayGroupOut(label=label, trades=trades) for label, trades in groups.items()
-    ])
+    return schemas.HistoryOut(
+        groups=[schemas.DayGroupOut(label=label, trades=trades) for label, trades in groups.items()],
+        summary=schemas.HistorySummaryOut(
+            balanceUsd=round(user.balance, 2),
+            totalProfitUsd=round(total_profit_usd, 2),
+            totalLossUsd=round(total_loss_usd, 2),
+            totalNetUsd=round(total_profit_usd + total_loss_usd, 2),
+        ),
+    )

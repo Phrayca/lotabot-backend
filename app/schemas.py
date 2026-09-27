@@ -67,6 +67,14 @@ class TradeOut(BaseModel):
     time: str
     amount: float
     amountUsd: float
+    status: str = "closed"
+    openPrice: Optional[float] = None
+    closePrice: Optional[float] = None
+    lots: Optional[float] = None
+    sl: Optional[float] = None
+    tp: Optional[float] = None
+    openedAt: Optional[datetime] = None
+    closedAt: Optional[datetime] = None
 
 
 class DayGroupOut(BaseModel):
@@ -74,8 +82,16 @@ class DayGroupOut(BaseModel):
     trades: List[TradeOut]
 
 
+class HistorySummaryOut(BaseModel):
+    balanceUsd: float
+    totalProfitUsd: float
+    totalLossUsd: float
+    totalNetUsd: float
+
+
 class HistoryOut(BaseModel):
     groups: List[DayGroupOut]
+    summary: HistorySummaryOut
 
 
 class CourseOut(BaseModel):
@@ -180,9 +196,16 @@ class MT5StatusOut(BaseModel):
 
 class SyncTradeIn(BaseModel):
     externalId: str
+    positionId: Optional[str] = None
     pair: str = "XAUUSD"
     amount: float
-    openedAt: datetime
+    openedAt: Optional[datetime] = None
+    closedAt: Optional[datetime] = None
+    openPrice: Optional[float] = None
+    closePrice: Optional[float] = None
+    lots: Optional[float] = None
+    sl: Optional[float] = None
+    tp: Optional[float] = None
     status: str = "closed"  # open | closed
 
 
